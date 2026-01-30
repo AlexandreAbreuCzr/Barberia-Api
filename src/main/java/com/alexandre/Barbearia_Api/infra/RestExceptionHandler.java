@@ -18,7 +18,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(UsuarioJaExisteException.class)
     private ResponseEntity<ApiErrorDTO> usuarioJaExisteHandler(UsuarioJaExisteException exception){
         ApiErrorDTO error = new ApiErrorDTO(
-                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.CONFLICT.value(),
                 "CONFLICT",
                 exception.getMessage()
         );
@@ -92,9 +92,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
-    @ExceptionHandler(AgendamentoAceitoBarbeiroException.class)
+    @ExceptionHandler(AgendamentoStatusInvalidoException.class)
     private ResponseEntity<ApiErrorDTO> agendamentoAceitoHandler(
-            AgendamentoAceitoBarbeiroException exception
+            AgendamentoStatusInvalidoException exception
     ) {
         ApiErrorDTO error = new ApiErrorDTO(
                 HttpStatus.FORBIDDEN.value(),

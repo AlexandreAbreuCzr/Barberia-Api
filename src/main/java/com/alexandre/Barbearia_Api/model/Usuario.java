@@ -1,6 +1,7 @@
 package com.alexandre.Barbearia_Api.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,8 +27,16 @@ public class Usuario implements UserDetails {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(nullable = false, unique = true)
+    private String username;
+
     @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    private String telefone;
 
     @Column(nullable = false)
     private String password;
@@ -46,11 +55,15 @@ public class Usuario implements UserDetails {
     private LocalDateTime dataDeModificacao;
 
 
-    public Usuario(String name, String password, UserRole role){
+
+    public Usuario(String username, String name, String email, String password, UserRole role) {
+        this.username = username;
         this.name = name;
+        this.email = email;
         this.password = password;
         this.role = role;
     }
+
 
 
     @Override
@@ -60,7 +73,7 @@ public class Usuario implements UserDetails {
 
     @Override
     public String getUsername() {
-        return this.name;
+        return this.username;
     }
 
     @Override

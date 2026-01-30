@@ -22,7 +22,7 @@ public class TokenService {
             Algorithm algorithm =Algorithm.HMAC256(secret);
             String token = JWT.create()
                     .withIssuer("auth-api-barbearia")
-                    .withSubject(usuario.getName())
+                    .withSubject(usuario.getUsername())
                     .withExpiresAt(generateExpirationDate())
                     .sign(algorithm);
             return token;

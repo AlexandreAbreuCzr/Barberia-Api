@@ -8,8 +8,8 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 public record AgendamentoCreateDTO (
-        @NotNull String clienteName,
-        @NotNull String barbeiroName,
+        @NotNull String clienteUsername,
+        @NotNull String barbeiroUsername,
         @NotNull Long servicoId,
         @NotNull LocalDate data,
         @NotNull LocalTime hora

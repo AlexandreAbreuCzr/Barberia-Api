@@ -1,8 +1,10 @@
 package com.alexandre.Barbearia_Api.controller;
 
 import com.alexandre.Barbearia_Api.dto.usuario.UsuarioResponseDTO;
+import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioNameDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioRoleDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioStatusDTO;
+import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioTelefoneDTO;
 import com.alexandre.Barbearia_Api.model.UserRole;
 import com.alexandre.Barbearia_Api.service.usuario.UsuarioService;
 import jakarta.validation.Valid;
@@ -28,10 +30,11 @@ public class UsuarioController {
 
     @GetMapping("/admin")
     public ResponseEntity<List<UsuarioResponseDTO>> find(
+            @RequestParam(required = false) String name,
             @RequestParam(required = false) Boolean status,
             @RequestParam(required = false) UserRole userRole
     ) {
-        return ResponseEntity.ok(usuarioService.find(status, userRole));
+        return ResponseEntity.ok(usuarioService.find(name, status, userRole));
     }
 
     @GetMapping("/admin/{username}")
@@ -42,7 +45,21 @@ public class UsuarioController {
     @PatchMapping("/admin/{username}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable String username, @Valid @RequestBody UsuarioStatusDTO dto) {
         usuarioService.updateStatus(username, dto);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
+    }
+
+
+    @PatchMapping("/admin/{username}/telefone")
+    public ResponseEntity<Void> updateStatus(@PathVariable String username, @Valid @RequestBody UsuarioTelefoneDTO dto) {
+        usuarioService.updateTelefone(username, dto);
+        return ResponseEntity.ok().build();
+    }
+
+
+    @PatchMapping("/admin/{username}/name")
+    public ResponseEntity<Void> updateName(@PathVariable String username, @Valid @RequestBody UsuarioNameDTO dto) {
+        usuarioService.updateName(username, dto);
+        return ResponseEntity.ok().build();
     }
 
     @PatchMapping("/admin/{username}/role")
@@ -51,7 +68,7 @@ public class UsuarioController {
             @Valid @RequestBody UsuarioRoleDTO dto
     ) {
         usuarioService.updateRole(username, dto);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
 
 }

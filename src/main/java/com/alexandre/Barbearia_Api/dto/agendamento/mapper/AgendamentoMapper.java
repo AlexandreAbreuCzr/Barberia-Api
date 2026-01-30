@@ -7,8 +7,8 @@ public class AgendamentoMapper {
     public static AgendamentoResponseDTO toResponse(Agendamento agendamento){
         return new AgendamentoResponseDTO(
                 agendamento.getId(),
-                agendamento.getCliente().getId(),
-                agendamento.getBarbeiro().getId(),
+                agendamento.getCliente().getUsername(),
+                agendamento.getBarbeiro().getUsername(),
                 agendamento.getServico().getId(),
                 agendamento.getData(),
                 agendamento.getHora(),

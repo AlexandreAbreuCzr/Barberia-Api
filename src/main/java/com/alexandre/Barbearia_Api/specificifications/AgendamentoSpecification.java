@@ -13,8 +13,8 @@ import java.util.List;
 public class AgendamentoSpecification {
 
     public static Specification<Agendamento> filtro(
-            String clienteName,
-            String barbeiroName,
+            String clienteUsername,
+            String barbeiroUsername,
             Long servicoId,
             LocalDate data,
             LocalTime hora,
@@ -24,20 +24,20 @@ public class AgendamentoSpecification {
 
             List<Predicate> predicates = new ArrayList<>();
 
-            if (clienteName != null) {
+            if (clienteUsername != null) {
                 predicates.add(
                         cb.equal(
                                 cb.lower(root.get("cliente").get("name")),
-                                clienteName.toLowerCase()
+                                clienteUsername.toLowerCase()
                         )
                 );
             }
 
-            if (barbeiroName != null) {
+            if (barbeiroUsername != null) {
                 predicates.add(
                         cb.equal(
                                 cb.lower(root.get("barbeiro").get("name")),
-                                barbeiroName.toLowerCase()
+                                barbeiroUsername.toLowerCase()
                         )
                 );
             }

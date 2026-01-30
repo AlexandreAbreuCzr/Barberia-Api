@@ -3,7 +3,9 @@ package com.alexandre.Barbearia_Api.service.usuario;
 import com.alexandre.Barbearia_Api.dto.usuario.AuthenticationDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.UsuarioRegisterDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.LoginResponseDTO;
+import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioJaExisteException;
 import com.alexandre.Barbearia_Api.infra.security.TokenService;
+import com.alexandre.Barbearia_Api.model.UserRole;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +37,7 @@ public class AuthorizationService {
     public LoginResponseDTO login(AuthenticationDTO data) {
 
         var authToken =
-                new UsernamePasswordAuthenticationToken(data.name(), data.password());
+                new UsernamePasswordAuthenticationToken(data.username(), data.password());
 
         var auth = authenticationManager.authenticate(authToken);
 
@@ -45,18 +47,36 @@ public class AuthorizationService {
     }
 
     public ResponseEntity<?> register(UsuarioRegisterDTO data) {
-        if (usuarioRepository.findByName(data.name()).isPresent()) {
+        if (usuarioRepository.existsByUsername(data.username())) {
+            throw new UsuarioJaExisteException("Username já está em uso");
+        }
+
+        if (usuarioRepository.existsByEmail(data.email())) {
+            throw new UsuarioJaExisteException("Email já está em uso");
+        }
+
+        if (usuarioRepository.findByUsername(data.username()).isPresent()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        if (usuarioRepository.findByEmail(data.email()).isPresent()) {
             return ResponseEntity.badRequest().build();
         }
 
         String encryptedPassword = passwordEncoder.encode(data.password());
 
-        Usuario newUsuario =
-                new Usuario(data.name(), encryptedPassword, data.role());
+        Usuario usuario = new Usuario(
+                data.username(),
+                data.name(),
+                data.email(),
+                encryptedPassword,
+                data.role()
+        );
 
-        usuarioRepository.save(newUsuario);
+        usuarioRepository.save(usuario);
 
         return ResponseEntity.ok().build();
     }
+
 }
 

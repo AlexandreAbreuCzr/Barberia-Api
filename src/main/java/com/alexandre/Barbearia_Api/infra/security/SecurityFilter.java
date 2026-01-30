@@ -35,7 +35,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         if (token != null) {
             String login = tokenService.validateToken(token);
             if (login != null) {
-                usuarioRepository.findByName(login).ifPresent(usuario -> {
+                usuarioRepository.findByUsername(login).ifPresent(usuario -> {
 
                     if (!usuario.isEnabled()) {
                         return;

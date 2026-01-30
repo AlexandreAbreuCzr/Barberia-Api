@@ -60,14 +60,20 @@ public class AgendamentoController {
     @PatchMapping("/{id}/aceitar")
     public ResponseEntity<Void> aceitar(@PathVariable Long id) {
         agendamentoService.aceitar(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
 
     // Cancelar agendamento
     @PatchMapping("/{id}/cancelar")
     public ResponseEntity<Void> cancelar(@PathVariable Long id) {
         agendamentoService.cancelar(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/concluir")
+    public ResponseEntity<Void> concluir(@PathVariable Long id){
+        agendamentoService.finalizar(id);
+        return ResponseEntity.ok().build();
     }
 
     // Deletar (somente se ainda estiver REQUISITADO)
@@ -80,8 +86,8 @@ public class AgendamentoController {
     //finds
     @GetMapping
     public ResponseEntity<List<AgendamentoResponseDTO>> find(
-            @RequestParam(required = false) String clienteName,
-            @RequestParam(required = false) String barbeiroName,
+            @RequestParam(required = false) String clienteUserName,
+            @RequestParam(required = false) String barbeiroUserName,
             @RequestParam(required = false) Long servicoId,
             @RequestParam(required = false) LocalDate data,
             @RequestParam(required = false) LocalTime hora,
@@ -89,8 +95,8 @@ public class AgendamentoController {
     ) {
         return ResponseEntity.ok(
                 agendamentoService.find(
-                        clienteName,
-                        barbeiroName,
+                        clienteUserName,
+                        barbeiroUserName,
                         servicoId,
                         data,
                         hora,

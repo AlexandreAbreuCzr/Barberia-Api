@@ -11,10 +11,18 @@ import java.util.UUID;
 @Repository
 public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
-    Optional<Usuario> findByName(String name);
+    boolean existsByUsername(String username);
+    boolean existsByEmail(String email);
 
+
+    Optional<Usuario> findByUsername(String userName);
+    Optional<Usuario> findByEmail(String email);
+
+
+    List<Usuario> findByNameContainingIgnoreCase(String name);
+    List<Usuario> findByTelefone(String telefone);
     List<Usuario> findByStatus(boolean status);
     List<Usuario> findByRole(UserRole role);
     List<Usuario> findByStatusAndRole(boolean status, UserRole role);
+    List<Usuario> findByNameContainingIgnoreCaseAndStatusAndRole(String name, boolean status, UserRole role);
 }
-

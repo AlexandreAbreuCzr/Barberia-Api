@@ -16,8 +16,8 @@ import java.util.UUID;
 
 @Repository
 public interface AgendamentoRepository extends JpaRepository<Agendamento, Long>, JpaSpecificationExecutor<Agendamento>{
-    List<Agendamento> findByCliente_Name(String clienteName);
-    List<Agendamento> findByBarbeiro_Name(String barbeiroName);
+    List<Agendamento> findByCliente_Username(String clienteUsername);
+    List<Agendamento> findByBarbeiro_Username(String barbeiroUsername);
     List<Agendamento> findByServicoId(Long servicoId);
     List<Agendamento> findByDataAndHora(LocalDate data, LocalTime hora);
     List<Agendamento> findByBarbeiroAndData(Usuario barbeiro, LocalDate data);

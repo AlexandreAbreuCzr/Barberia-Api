@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.alexandre</groupId>
     <artifactId>Barbearia-Api</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
     <name>Barbearia-Api</name>
     <description>Api para fins didaticos sobre uma barbearia</description>
     <url/>

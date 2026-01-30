@@ -9,8 +9,8 @@ import java.util.UUID;
 
 public record AgendamentoResponseDTO (
         Long id,
-        UUID clienteId,
-        UUID barbeiroId,
+        String clienteUsername,
+        String barbeiroUsername,
         Long servicoId,
         LocalDate data,
         LocalTime hora,

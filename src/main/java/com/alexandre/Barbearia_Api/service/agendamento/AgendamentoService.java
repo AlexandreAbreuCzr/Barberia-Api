@@ -17,14 +17,13 @@ import com.alexandre.Barbearia_Api.repository.ServicoRepository;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
 import com.alexandre.Barbearia_Api.service.usuario.UsuarioService;
 import com.alexandre.Barbearia_Api.specificifications.AgendamentoSpecification;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.Objects;
 
 @Service
 public class AgendamentoService {
@@ -44,8 +43,8 @@ public class AgendamentoService {
 
         validarDataEHora(dto.data(), dto.hora());
 
-        Usuario barbeiro = getUsuarioByName(dto.barbeiroName());
-        Usuario cliente = getUsuarioByName(dto.clienteName());
+        Usuario barbeiro = getUsuarioByName(dto.barbeiroUsername());
+        Usuario cliente = getUsuarioByName(dto.clienteUsername());
         Servico servico = getServicoById(dto.servicoId());
 
         if (!barbeiro.isStatus() || !cliente.isStatus()){
@@ -78,7 +77,7 @@ public class AgendamentoService {
         Agendamento agendamento = getAgendamentoById(id);
 
         if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO) {
-            throw new AgendamentoAceitoBarbeiroException(
+            throw new AgendamentoStatusInvalidoException(
                     "Agendamento já foi aceito pelo barbeiro, não é possível modificar"
             );
         }
@@ -116,7 +115,7 @@ public class AgendamentoService {
     public void delete(Long id){
         Agendamento agendamento = getAgendamentoById(id);
         if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO){
-            throw new AgendamentoAceitoBarbeiroException("Agendamento já foi aceito pelo barbeiro não e possivel apagar apenas cancelar");
+            throw new AgendamentoStatusInvalidoException("Agendamento já foi aceito pelo barbeiro não e possivel apagar apenas cancelar");
         }
         agendamentoRepository.delete(agendamento);
     }
@@ -124,11 +123,51 @@ public class AgendamentoService {
     public void cancelar(Long id){
         Agendamento agendamento = getAgendamentoById(id);
         if (agendamento.getAgendamentoStatus() != AgendamentoStatus.AGENDADO){
-            throw new AgendamentoAceitoBarbeiroException("Agendamento não foi aceito pelo barbeiro não ou já foi cancelado");
+            throw new AgendamentoStatusInvalidoException("Agendamento não foi aceito pelo barbeiro não ou já foi cancelado");
         }
         agendamento.setAgendamentoStatus(AgendamentoStatus.CANCELADO);
         agendamentoRepository.save(agendamento);
     }
+
+    @Transactional
+    public void finalizar(Long id) {
+
+        UsuarioResponseDTO usuarioLogado = usuarioService.getUsuarioAutenticado();
+        Agendamento agendamento = getAgendamentoById(id);
+
+        boolean isBarbeiroDoAgendamento =
+                Objects.equals(
+                        usuarioLogado.username(),
+                        agendamento.getBarbeiro().getUsername()
+                );
+
+        boolean isAdmin = usuarioLogado.role().equals(UserRole.ADMIN);
+
+        if (!isBarbeiroDoAgendamento && !isAdmin) {
+            throw new UsuarioNaoBarbeiroException("Você não é o barbeiro desse agendamento");
+        }
+
+        if (agendamento.getAgendamentoStatus() != AgendamentoStatus.AGENDADO) {
+            throw new AgendamentoStatusInvalidoException(
+                    "Somente agendamentos AGENDADOS podem ser finalizados"
+            );
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
+        LocalDateTime inicioPermitido =
+                LocalDateTime.of(agendamento.getData(), agendamento.getHora())
+                        .plusMinutes(10);
+
+        if (agora.isBefore(inicioPermitido)) {
+            throw new AgendamentoHorarioInvalidoException(
+                    "O agendamento só pode ser finalizado 10 minutos após o horário marcado"
+            );
+        }
+
+        agendamento.setAgendamentoStatus(AgendamentoStatus.CONCLUIDO);
+        agendamentoRepository.save(agendamento);
+    }
+
 
     private void verificaBarbeiroOcupado(
             Usuario barbeiro,
@@ -173,8 +212,8 @@ public class AgendamentoService {
     }
 
     public List<AgendamentoResponseDTO> find(
-            String clienteName,
-            String barbeiroName,
+            String clienteUserName,
+            String barbeiroUserName,
             Long servicoId,
             LocalDate data,
             LocalTime hora,
@@ -182,8 +221,8 @@ public class AgendamentoService {
     ) {
         return agendamentoRepository.findAll(
                 AgendamentoSpecification.filtro(
-                        clienteName,
-                        barbeiroName,
+                        clienteUserName,
+                        barbeiroUserName,
                         servicoId,
                         data,
                         hora,
@@ -201,19 +240,23 @@ public class AgendamentoService {
     public List<AgendamentoResponseDTO> getAutenticado(){
         UsuarioResponseDTO usuarioResponseDTO = usuarioService.getUsuarioAutenticado();
         List<Agendamento> agendamentos = new ArrayList<>();
-        agendamentos.addAll(agendamentoRepository.findByBarbeiro_Name(usuarioResponseDTO.name()));
-        agendamentos.addAll(agendamentoRepository.findByCliente_Name(usuarioResponseDTO.name()));
+        agendamentos.addAll(agendamentoRepository.findByBarbeiro_Username(usuarioResponseDTO.username()));
+        agendamentos.addAll(agendamentoRepository.findByCliente_Username(usuarioResponseDTO.username()));
         return mapAgendamentos(agendamentos);
 
     }
 
     public void aceitar(Long id){
+        UsuarioResponseDTO usuarioLogado = usuarioService.getUsuarioAutenticado();
         AgendamentoUpdateDTO dto = new AgendamentoUpdateDTO(null, null, AgendamentoStatus.AGENDADO);
+        if (!Objects.equals(usuarioLogado.username(), getAgendamentoById(id).getBarbeiro().getUsername()) && !usuarioLogado.role().equals(UserRole.ADMIN)){
+            throw new UsuarioNaoBarbeiroException("Você não é o barbeiro desse pedido");
+        }
         update(id, dto);
     }
 
     private Usuario getUsuarioByName(String name){
-        return usuarioRepository.findByName(name)
+        return usuarioRepository.findByUsername(name)
                 .orElseThrow(UsuarioNotFoundException::new);
     }
 

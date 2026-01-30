@@ -51,7 +51,7 @@ public class ServicoController {
             @Valid @RequestBody ServicoUpdateDTO dto
     ) {
         servicoService.update(id, dto);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")
