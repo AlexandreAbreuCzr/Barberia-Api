@@ -35,13 +35,13 @@ public class ServicoService {
     public List<ServicoResponseDTO> find(String name, Boolean status){
 
         if (name != null && status != null)
-            return mapDTOS(servicoRepository.findByNameContainingIgnoreCaseAndStatus(name.trim(), status));
+            return ServicoMapper.toResponses(servicoRepository.findByNameContainingIgnoreCaseAndStatus(name.trim(), status));
         if (name != null)
-            return mapDTOS(servicoRepository.findByNameContainingIgnoreCase(name.trim()));
+            return ServicoMapper.toResponses(servicoRepository.findByNameContainingIgnoreCase(name.trim()));
         if (status != null)
-            return mapDTOS(servicoRepository.findByStatus(status));
+            return ServicoMapper.toResponses(servicoRepository.findByStatus(status));
 
-        return mapDTOS(servicoRepository.findAll());
+        return ServicoMapper.toResponses(servicoRepository.findAll());
     }
 
     public void delete(Long id){
@@ -59,13 +59,7 @@ public class ServicoService {
         servicoRepository.save(servico);
     }
 
-    private List<ServicoResponseDTO> mapDTOS(List<Servico> servicos){
-        List<ServicoResponseDTO> response = servicos
-                .stream()
-                .map(ServicoMapper::toResponse)
-                .toList();
-        return response;
-    }
+    // Metodos privados
 
     private Servico getById(Long id){
         Servico servico = servicoRepository.findById(id)

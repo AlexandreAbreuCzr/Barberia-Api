@@ -64,31 +64,22 @@ public class UsuarioService {
 
     public List<UsuarioResponseDTO> find(String name, Boolean status, UserRole role){
         if (name != null && status != null && role != null)
-            return mapUsuarios(usuarioRepository.findByNameContainingIgnoreCaseAndStatusAndRole(name, status, role));
+            return UsuarioMapper.toResponses(usuarioRepository.findByNameContainingIgnoreCaseAndStatusAndRole(name, status, role));
 
         if (status != null && role != null)
-            return mapUsuarios(usuarioRepository.findByStatusAndRole(status, role));
+            return UsuarioMapper.toResponses(usuarioRepository.findByStatusAndRole(status, role));
 
         if (name != null){
-            return mapUsuarios(usuarioRepository.findByNameContainingIgnoreCase(name));
+            return UsuarioMapper.toResponses(usuarioRepository.findByNameContainingIgnoreCase(name));
         }
 
         if (status != null)
-            return mapUsuarios(usuarioRepository.findByStatus(status));
+            return UsuarioMapper.toResponses(usuarioRepository.findByStatus(status));
 
         if (role != null)
-            return mapUsuarios(usuarioRepository.findByRole(role));
+            return UsuarioMapper.toResponses(usuarioRepository.findByRole(role));
 
-        return mapUsuarios(usuarioRepository.findAll());
-    }
-
-    private List<UsuarioResponseDTO> mapUsuarios(List<Usuario> usuarios){
-        return usuarios.stream().map(UsuarioMapper::toResponse).toList();
-    }
-
-    private Usuario getByUsername(String username){
-        return usuarioRepository.findByUsername(username)
-                .orElseThrow(UsuarioNotFoundException::new);
+        return UsuarioMapper.toResponses(usuarioRepository.findAll());
     }
 
     public UsuarioResponseDTO getUsuarioAutenticado(){
@@ -97,5 +88,13 @@ public class UsuarioService {
                 .getAuthentication()
                 .getPrincipal();
         return UsuarioMapper.toResponse(usuario);
+    }
+
+    // Metodos privados
+    
+
+    private Usuario getByUsername(String username){
+        return usuarioRepository.findByUsername(username)
+                .orElseThrow(UsuarioNotFoundException::new);
     }
 }

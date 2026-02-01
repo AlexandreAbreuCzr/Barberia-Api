@@ -3,6 +3,8 @@ package com.alexandre.Barbearia_Api.dto.agendamento.mapper;
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoResponseDTO;
 import com.alexandre.Barbearia_Api.model.Agendamento;
 
+import java.util.List;
+
 public class AgendamentoMapper {
     public static AgendamentoResponseDTO toResponse(Agendamento agendamento){
         return new AgendamentoResponseDTO(
@@ -16,5 +18,8 @@ public class AgendamentoMapper {
                 agendamento.getDataDeCriacao(),
                 agendamento.getDataDeModificacao()
         );
+    }
+    public static List<AgendamentoResponseDTO> toResponses(List<Agendamento> agendamentos){
+        return agendamentos.stream().map(AgendamentoMapper::toResponse).toList();
     }
 }
