@@ -117,4 +117,4 @@ Authorization: Bearer <token>
 
 ## 📄 Licença
 
-MIT © Alexandre Abreu Czarnieski
+GNU © Alexandre Abreu Czarnieski
