@@ -8,6 +8,7 @@ import com.alexandre.Barbearia_Api.model.AgendamentoStatus;
 import com.alexandre.Barbearia_Api.service.agendamento.AgendamentoService;
 import com.alexandre.Barbearia_Api.specificifications.AgendamentoSpecification;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +32,9 @@ public class AgendamentoController {
     public ResponseEntity<AgendamentoResponseDTO> create(
             @Valid @RequestBody AgendamentoCreateDTO dto
     ) {
-        return ResponseEntity.ok(agendamentoService.create(dto));
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(agendamentoService.create(dto));
     }
 
     // Buscar por ID

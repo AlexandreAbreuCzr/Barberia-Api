@@ -57,6 +57,12 @@ public class SecurityConfigurations {
                         .requestMatchers(HttpMethod.PATCH, "/agendamento/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/agendamento/**").authenticated()
 
+                        // ===== INDISPONIBILIDADE =====
+                        .requestMatchers(HttpMethod.POST, "/indisponibilidade").hasAnyRole("BARBEIRO", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/indisponibilidade/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/indisponibilidade/**").hasAnyRole("BARBEIRO", "ADMIN")
+
+
                         // ===== FALLBACK =====
                         .anyRequest().authenticated()
                 )

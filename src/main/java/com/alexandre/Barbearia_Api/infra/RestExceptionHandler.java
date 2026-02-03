@@ -2,6 +2,8 @@ package com.alexandre.Barbearia_Api.infra;
 
 import com.alexandre.Barbearia_Api.dto.exceptions.ApiErrorDTO;
 import com.alexandre.Barbearia_Api.infra.exceptions.agendamento.*;
+import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.IndisponibilidadeNotFoundException;
+import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.IndisponibilidadeNotFoundInicioFimException;
 import com.alexandre.Barbearia_Api.infra.exceptions.servico.ServicoDesativadoException;
 import com.alexandre.Barbearia_Api.infra.exceptions.servico.ServicoNotFoundException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioDesativadoException;
@@ -141,4 +143,27 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    @ExceptionHandler(IndisponibilidadeNotFoundException.class)
+    private ResponseEntity<ApiErrorDTO> IndisponibilidadeNotFoundHandler(IndisponibilidadeNotFoundException exception
+    ) {
+        ApiErrorDTO error = new ApiErrorDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "NOT_FOUND",
+                exception.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(IndisponibilidadeNotFoundInicioFimException.class)
+    private ResponseEntity<ApiErrorDTO> IndisponibilidadeNotFoundInicioFimHandler(IndisponibilidadeNotFoundInicioFimException exception
+    ) {
+        ApiErrorDTO error = new ApiErrorDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "BAD_REQUEST",
+                exception.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
 }

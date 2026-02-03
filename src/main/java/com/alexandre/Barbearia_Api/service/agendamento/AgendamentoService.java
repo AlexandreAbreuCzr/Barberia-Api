@@ -72,6 +72,25 @@ public class AgendamentoService {
         return AgendamentoMapper.toResponse(agendamentoRepository.save(agendamento));
     }
 
+    // apagar e cancelar
+
+    public void delete(Long id){
+        Agendamento agendamento = getAgendamentoById(id);
+        if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO){
+            throw new AgendamentoStatusInvalidoException("Agendamento já foi aceito pelo barbeiro não e possivel apagar apenas cancelar");
+        }
+        agendamentoRepository.delete(agendamento);
+    }
+
+    public void cancelar(Long id){
+        Agendamento agendamento = getAgendamentoById(id);
+        if (agendamento.getAgendamentoStatus() != AgendamentoStatus.AGENDADO){
+            throw new AgendamentoStatusInvalidoException("Agendamento não foi aceito pelo barbeiro não ou já foi cancelado");
+        }
+        agendamento.setAgendamentoStatus(AgendamentoStatus.CANCELADO);
+        agendamentoRepository.save(agendamento);
+    }
+
     // Update
 
     public void update(Long id, AgendamentoUpdateDTO dto) {
@@ -82,7 +101,7 @@ public class AgendamentoService {
         LocalDate novaData = dto.data() != null ? dto.data() : agendamento.getData();
         LocalTime novaHora = dto.hora() != null ? dto.hora() : agendamento.getHora();
 
-        validator.validarDataEHora(novaData, novaHora);
+        validator.validarDataEHora(novaData, novaHora, agendamento.getServico().getDuracaoMediaEmMinutos());
         horarioValidator.validarDisponibilidade(
                 agendamento.getBarbeiro(),
                 novaData,
@@ -127,18 +146,24 @@ public class AgendamentoService {
     }
 
     public void aceitar(Long id) {
-
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
 
+        // autorização OK
         if (!usuario.username().equals(agendamento.getBarbeiro().getUsername())
-                && usuario.role().equals(UserRole.ADMIN.getRole())) {
+                && !usuario.role().equals(UserRole.ADMIN.getRole())) {
             throw new UsuarioNaoBarbeiroException();
+        }
+
+        // STATUS GATE (o que você perdeu)
+        if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO) {
+            throw new AgendamentoStatusInvalidoException("Só pedidos REQUISITADOS podem ser aceitos");
         }
 
         agendamento.setAgendamentoStatus(AgendamentoStatus.AGENDADO);
         agendamentoRepository.save(agendamento);
     }
+
 
 
     // Finds e gets
