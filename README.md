@@ -52,6 +52,18 @@ CREATE DATABASE barbearia_api;
 ./mvnw spring-boot:run
 ```
 
+> Por padrão a API sobe em `http://localhost:8080`.
+
+### ✅ Variáveis de ambiente obrigatórias
+
+| Variável     | Descrição                        |
+| ----------- | -------------------------------- |
+| `DB_URL`     | URL JDBC do PostgreSQL           |
+| `DB_USERNAME` | Usuário do banco                |
+| `DB_PASSWORD` | Senha do banco                  |
+| `JWT_SECRET`  | Segredo para assinar tokens JWT |
+
+
 ---
 
 ## 🔑 Autenticação
@@ -72,6 +84,17 @@ Authorization: Bearer <token>
 | ------------------- | --------- | ---------------------------- | ----------- |
 | `/usuario/me`       | GET       | Dados do usuário autenticado | Autenticado |
 | `/usuario/admin/**` | GET/PATCH | Gerenciamento de usuários    | ADMIN       |
+
+### 🔐 Administração de usuários
+
+| Endpoint                          | Método | Descrição                          | Acesso |
+| --------------------------------- | ------ | ---------------------------------- | ------ |
+| `/usuario/admin`                  | GET    | Listar usuários (filtros opcionais) | ADMIN  |
+| `/usuario/admin/{username}`       | GET    | Buscar usuário por username        | ADMIN  |
+| `/usuario/admin/{username}/status`| PATCH  | Atualizar status                   | ADMIN  |
+| `/usuario/admin/{username}/telefone` | PATCH | Atualizar telefone               | ADMIN  |
+| `/usuario/admin/{username}/name`  | PATCH  | Atualizar nome                     | ADMIN  |
+| `/usuario/admin/{username}/role`  | PATCH  | Atualizar role                     | ADMIN  |
 
 ---
 
@@ -104,6 +127,25 @@ Authorization: Bearer <token>
 > * Horário de atendimento: 09:00–12:00 e 13:00–20:00.
 
 ---
+
+## ⛔ Indisponibilidades
+
+| Endpoint                 | Método | Descrição                           | Acesso            |
+| ------------------------ | ------ | ----------------------------------- | ----------------- |
+| `/indisponibilidade`     | POST   | Criar indisponibilidade             | BARBEIRO/ADMIN    |
+| `/indisponibilidade`     | GET    | Listar indisponibilidades (com filtros) | Autenticado   |
+| `/indisponibilidade/{id}`| GET    | Buscar indisponibilidade por ID     | Autenticado       |
+| `/indisponibilidade/{id}`| DELETE | Remover indisponibilidade           | BARBEIRO/ADMIN    |
+
+Filtros disponíveis no `GET /indisponibilidade`:
+
+* `barbeiroUsername` (string)
+* `inicio` (LocalDateTime, ex: `2025-01-30T09:00:00`)
+* `fim` (LocalDateTime, ex: `2025-01-30T18:00:00`)
+* `tipo` (enum `TipoIndisponibilidade`)
+
+---
+
 
 ## 🛠️ Contribuição
 
