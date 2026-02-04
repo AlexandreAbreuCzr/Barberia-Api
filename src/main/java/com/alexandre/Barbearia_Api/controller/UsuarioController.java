@@ -1,6 +1,7 @@
 package com.alexandre.Barbearia_Api.controller;
 
 import com.alexandre.Barbearia_Api.dto.usuario.UsuarioResponseDTO;
+import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioMeUpdateDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioNameDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioRoleDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioStatusDTO;
@@ -26,6 +27,17 @@ public class UsuarioController {
     @GetMapping("/me")
     public ResponseEntity<UsuarioResponseDTO> me(){
         return ResponseEntity.ok(usuarioService.getUsuarioAutenticado());
+    }
+
+    @GetMapping("/barbeiros")
+    public ResponseEntity<List<UsuarioResponseDTO>> barbeiros(){
+        return ResponseEntity.ok(usuarioService.findBarbeirosAtivos());
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<Void> updateMe(@Valid @RequestBody UsuarioMeUpdateDTO dto) {
+        usuarioService.updateMe(dto);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/admin")

@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.alexandre</groupId>
     <artifactId>Barbearia-Api</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <name>Barbearia-Api</name>
     <description>Api para fins didaticos sobre uma barbearia</description>
     <url/>
@@ -45,6 +45,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>

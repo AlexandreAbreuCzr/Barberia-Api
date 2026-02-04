@@ -3,6 +3,7 @@ package com.alexandre.Barbearia_Api.service.agendamento;
 import com.alexandre.Barbearia_Api.infra.exceptions.agendamento.AgendamentoHorarioInvalidoException;
 import com.alexandre.Barbearia_Api.infra.exceptions.agendamento.AgendamentoOcupadoException;
 import com.alexandre.Barbearia_Api.model.Agendamento;
+import com.alexandre.Barbearia_Api.model.AgendamentoStatus;
 import com.alexandre.Barbearia_Api.model.Servico;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import com.alexandre.Barbearia_Api.repository.AgendamentoRepository;
@@ -43,6 +44,11 @@ public class AgendamentoHorarioValidator {
 
             if (ignorarAgendamentoId != null &&
                     agendamento.getId().equals(ignorarAgendamentoId)) {
+                continue;
+            }
+
+            if (agendamento.getAgendamentoStatus() != AgendamentoStatus.AGENDADO
+                    && agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO) {
                 continue;
             }
 

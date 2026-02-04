@@ -10,7 +10,7 @@ public class AgendamentoMapper {
         return new AgendamentoResponseDTO(
                 agendamento.getId(),
                 agendamento.getCliente().getUsername(),
-                agendamento.getBarbeiro().getUsername(),
+                agendamento.getBarbeiro() != null ? agendamento.getBarbeiro().getUsername() : null,
                 agendamento.getServico().getId(),
                 agendamento.getData(),
                 agendamento.getHora(),

@@ -94,7 +94,8 @@ public class AgendamentoController {
             @RequestParam(required = false) Long servicoId,
             @RequestParam(required = false) LocalDate data,
             @RequestParam(required = false) LocalTime hora,
-            @RequestParam(required = false) AgendamentoStatus status
+            @RequestParam(required = false) AgendamentoStatus status,
+            @RequestParam(required = false) Boolean semBarbeiro
     ) {
         return ResponseEntity.ok(
                 agendamentoService.find(
@@ -103,7 +104,8 @@ public class AgendamentoController {
                         servicoId,
                         data,
                         hora,
-                        status
+                        status,
+                        semBarbeiro
                 )
         );
     }

@@ -41,7 +41,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                String subject = tokenService.validateToken(token); // subject do JWT
+                String subject = tokenService.validateToken(token);
 
                 if (subject != null && !subject.isBlank()) {
                     usuarioRepository.findByUsername(subject)
@@ -74,13 +74,12 @@ public class SecurityFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         String method = request.getMethod();
 
-        // auth
         if (path.equals("/auth/login") || path.equals("/auth/register")) return true;
+        if (path.startsWith("/auth/password")) return true;
 
-        // serviços públicos (se no seu security tá permitAll no GET)
-        if (path.startsWith("/servicos") && HttpMethod.GET.matches(method)) return true;
+        if ((path.startsWith("/servico") || path.startsWith("/servicos")) && HttpMethod.GET.matches(method)) return true;
+        if (path.startsWith("/uploads") && HttpMethod.GET.matches(method)) return true;
 
-        // preflight já tratado, mas aqui também pode
         if (HttpMethod.OPTIONS.matches(method)) return true;
 
         return false;
@@ -92,3 +91,4 @@ public class SecurityFilter extends OncePerRequestFilter {
         return authHeader.substring(7);
     }
 }
+

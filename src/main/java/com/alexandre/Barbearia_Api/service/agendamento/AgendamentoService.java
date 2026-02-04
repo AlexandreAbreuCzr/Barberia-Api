@@ -13,6 +13,8 @@ import com.alexandre.Barbearia_Api.model.*;
 import com.alexandre.Barbearia_Api.repository.AgendamentoRepository;
 import com.alexandre.Barbearia_Api.repository.ServicoRepository;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
+import com.alexandre.Barbearia_Api.service.caixa.CaixaService;
+import com.alexandre.Barbearia_Api.service.comissao.ComissaoService;
 import com.alexandre.Barbearia_Api.service.usuario.UsuarioService;
 import com.alexandre.Barbearia_Api.specificifications.AgendamentoSpecification;
 import jakarta.transaction.Transactional;
@@ -32,6 +34,8 @@ public class AgendamentoService {
     private final ServicoRepository servicoRepository;
     private final AgendamentoValidator validator;
     private final AgendamentoHorarioValidator horarioValidator;
+    private final ComissaoService comissaoService;
+    private final CaixaService caixaService;
 
     // Injeção
 
@@ -41,7 +45,9 @@ public class AgendamentoService {
             UsuarioRepository usuarioRepository,
             ServicoRepository servicoRepository,
             AgendamentoValidator validator,
-            AgendamentoHorarioValidator horarioValidator
+            AgendamentoHorarioValidator horarioValidator,
+            ComissaoService comissaoService,
+            CaixaService caixaService
     ) {
         this.usuarioService = usuarioService;
         this.agendamentoRepository = agendamentoRepository;
@@ -49,18 +55,25 @@ public class AgendamentoService {
         this.servicoRepository = servicoRepository;
         this.validator = validator;
         this.horarioValidator = horarioValidator;
+        this.comissaoService = comissaoService;
+        this.caixaService = caixaService;
     }
 
     // Criador de agendamento
 
     public AgendamentoResponseDTO create(AgendamentoCreateDTO dto) {
 
-        Usuario barbeiro = getUsuarioByUsername(dto.barbeiroUsername());
+        Usuario barbeiro = null;
+        if (dto.barbeiroUsername() != null && !dto.barbeiroUsername().isBlank()) {
+            barbeiro = getUsuarioByUsername(dto.barbeiroUsername());
+        }
         Usuario cliente = getUsuarioByUsername(dto.clienteUsername());
         Servico servico = getServicoById(dto.servicoId());
 
         validator.validarCriacao(dto, barbeiro, cliente, servico);
-        horarioValidator.validarDisponibilidade(barbeiro, dto.data(), dto.hora(), servico, null);
+        if (barbeiro != null) {
+            horarioValidator.validarDisponibilidade(barbeiro, dto.data(), dto.hora(), servico, null);
+        }
 
         Agendamento agendamento = new Agendamento();
         agendamento.setCliente(cliente);
@@ -84,8 +97,9 @@ public class AgendamentoService {
 
     public void cancelar(Long id){
         Agendamento agendamento = getAgendamentoById(id);
-        if (agendamento.getAgendamentoStatus() != AgendamentoStatus.AGENDADO){
-            throw new AgendamentoStatusInvalidoException("Agendamento não foi aceito pelo barbeiro não ou já foi cancelado");
+        AgendamentoStatus status = agendamento.getAgendamentoStatus();
+        if (status != AgendamentoStatus.REQUISITADO && status != AgendamentoStatus.AGENDADO){
+            throw new AgendamentoStatusInvalidoException("Agendamento nao pode ser cancelado neste status");
         }
         agendamento.setAgendamentoStatus(AgendamentoStatus.CANCELADO);
         agendamentoRepository.save(agendamento);
@@ -102,6 +116,7 @@ public class AgendamentoService {
         LocalTime novaHora = dto.hora() != null ? dto.hora() : agendamento.getHora();
 
         validator.validarDataEHora(novaData, novaHora, agendamento.getServico().getDuracaoMediaEmMinutos());
+        validator.validarIndisponibilidade(agendamento.getBarbeiro(), agendamento.getServico(), novaData, novaHora);
         horarioValidator.validarDisponibilidade(
                 agendamento.getBarbeiro(),
                 novaData,
@@ -115,6 +130,8 @@ public class AgendamentoService {
 
         if (dto.agendamentoStatus() != null) {
             agendamento.setAgendamentoStatus(dto.agendamentoStatus());
+        } else if (agendamento.getAgendamentoStatus() == AgendamentoStatus.CANCELADO) {
+            agendamento.setAgendamentoStatus(AgendamentoStatus.REQUISITADO);
         }
 
         agendamentoRepository.save(agendamento);
@@ -143,15 +160,19 @@ public class AgendamentoService {
 
         agendamento.setAgendamentoStatus(AgendamentoStatus.CONCLUIDO);
         agendamentoRepository.save(agendamento);
+        comissaoService.createForAgendamento(agendamento);
+        caixaService.createEntradaAgendamento(agendamento);
     }
 
+    @Transactional
     public void aceitar(Long id) {
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
 
         // autorização OK
-        if (!usuario.role().equals(UserRole.BARBEIRO.getRole())
-                && !usuario.role().equals(UserRole.ADMIN.getRole())) {
+        String role = usuario.role();
+        if (!UserRole.BARBEIRO.name().equalsIgnoreCase(role)
+                && !UserRole.ADMIN.name().equalsIgnoreCase(role)) {
             throw new UsuarioNaoBarbeiroException();
         }
 
@@ -160,6 +181,27 @@ public class AgendamentoService {
             throw new AgendamentoStatusInvalidoException("Só pedidos REQUISITADOS podem ser aceitos");
         }
 
+        Usuario barbeiro = getUsuarioByUsername(usuario.username());
+        if (agendamento.getBarbeiro() == null) {
+            validator.validarBarbeiro(barbeiro);
+            validator.validarIndisponibilidade(
+                    barbeiro,
+                    agendamento.getServico(),
+                    agendamento.getData(),
+                    agendamento.getHora()
+            );
+            horarioValidator.validarDisponibilidade(
+                    barbeiro,
+                    agendamento.getData(),
+                    agendamento.getHora(),
+                    agendamento.getServico(),
+                    null
+            );
+            agendamento.setBarbeiro(barbeiro);
+        } else if (!agendamento.getBarbeiro().getUsername().equalsIgnoreCase(usuario.username())
+                && !UserRole.ADMIN.name().equalsIgnoreCase(role)) {
+            throw new UsuarioNaoBarbeiroException();
+        }
 
         agendamento.setAgendamentoStatus(AgendamentoStatus.AGENDADO);
         agendamentoRepository.save(agendamento);
@@ -181,7 +223,8 @@ public class AgendamentoService {
             Long servicoId,
             LocalDate data,
             LocalTime hora,
-            AgendamentoStatus status
+            AgendamentoStatus status,
+            Boolean semBarbeiro
     ) {
         return agendamentoRepository.findAll(
                 AgendamentoSpecification.filtro(
@@ -190,7 +233,8 @@ public class AgendamentoService {
                         servicoId,
                         data,
                         hora,
-                        status
+                        status,
+                        semBarbeiro
                 )
         ).stream().map(AgendamentoMapper::toResponse).toList();
     }

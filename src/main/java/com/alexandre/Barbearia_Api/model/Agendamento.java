@@ -28,7 +28,7 @@ public class Agendamento {
     private Usuario cliente;
 
     @ManyToOne
-    @JoinColumn(name = "barbeiro_id", nullable = false)
+    @JoinColumn(name = "barbeiro_id")
     private Usuario barbeiro;
 
     @ManyToOne

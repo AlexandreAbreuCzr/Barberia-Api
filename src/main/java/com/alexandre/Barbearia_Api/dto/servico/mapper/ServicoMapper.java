@@ -12,6 +12,7 @@ public class ServicoMapper {
                 servico.getName(),
                 servico.getPrice(),
                 servico.getDuracaoMediaEmMinutos(),
+                servico.getImageUrl(),
                 servico.isStatus(),
                 servico.getDataDeCriacao(),
                 servico.getDataDeModificacao()

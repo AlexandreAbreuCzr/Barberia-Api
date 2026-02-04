@@ -24,5 +24,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     List<Usuario> findByStatus(boolean status);
     List<Usuario> findByRole(UserRole role);
     List<Usuario> findByStatusAndRole(boolean status, UserRole role);
+    List<Usuario> findByStatusAndRoleIn(boolean status, List<UserRole> roles);
     List<Usuario> findByNameContainingIgnoreCaseAndStatusAndRole(String name, boolean status, UserRole role);
 }

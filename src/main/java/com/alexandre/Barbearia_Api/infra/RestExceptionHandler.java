@@ -6,6 +6,7 @@ import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.Indisponib
 import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.IndisponibilidadeNotFoundInicioFimException;
 import com.alexandre.Barbearia_Api.infra.exceptions.servico.ServicoDesativadoException;
 import com.alexandre.Barbearia_Api.infra.exceptions.servico.ServicoNotFoundException;
+import com.alexandre.Barbearia_Api.infra.exceptions.usuario.PasswordResetCodeInvalidException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioDesativadoException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioJaExisteException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
@@ -52,6 +53,17 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(PasswordResetCodeInvalidException.class)
+    private ResponseEntity<ApiErrorDTO> passwordResetInvalidHandler(PasswordResetCodeInvalidException exception){
+        ApiErrorDTO error = new ApiErrorDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "BAD_REQUEST",
+                exception.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     @ExceptionHandler(ServicoNotFoundException.class)

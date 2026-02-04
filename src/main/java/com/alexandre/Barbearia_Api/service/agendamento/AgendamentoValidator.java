@@ -36,18 +36,23 @@ public class AgendamentoValidator {
     ) {
         validarUsuarios(barbeiro, cliente);
         validarServico(servico);
-        validarBarbeiro(barbeiro);
+        if (barbeiro != null) {
+            validarBarbeiro(barbeiro);
+        }
 
         // valida data e intervalo (inicio+duracao) dentro do funcionamento
-        validarData(dto.data());
+        validarData(dto.data(), dto.hora());
         validarIntervaloDentroDoFuncionamento(dto.data(), dto.hora(), servico.getDuracaoMediaEmMinutos());
 
         // valida conflito com indisponibilidade do barbeiro
-        validarIndisponibilidade(dto, barbeiro, servico);
+        if (barbeiro != null) {
+            validarIndisponibilidade(barbeiro, servico, dto.data(), dto.hora());
+        }
     }
 
     public void validarAtualizacao(Agendamento agendamento) {
-        if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO) {
+        AgendamentoStatus status = agendamento.getAgendamentoStatus();
+        if (status != AgendamentoStatus.REQUISITADO && status != AgendamentoStatus.CANCELADO) {
             throw new AgendamentoStatusInvalidoException("Agendamento não pode mais ser modificado");
         }
     }
@@ -55,7 +60,7 @@ public class AgendamentoValidator {
     public void validarFinalizacao(UsuarioResponseDTO usuario, Agendamento agendamento) {
         boolean autorizado =
                 usuario.username().equals(agendamento.getBarbeiro().getUsername())
-                        || usuario.role().equals(UserRole.ADMIN.getRole());
+                        || UserRole.ADMIN.name().equalsIgnoreCase(usuario.role());
 
         if (!autorizado) {
             throw new UsuarioNaoBarbeiroException();
@@ -72,8 +77,8 @@ public class AgendamentoValidator {
     //  Regras principais
     // ======================
 
-    private void validarIndisponibilidade(AgendamentoCreateDTO dto, Usuario barbeiro, Servico servico) {
-        LocalDateTime inicioAg = LocalDateTime.of(dto.data(), dto.hora());
+    public void validarIndisponibilidade(Usuario barbeiro, Servico servico, LocalDate data, LocalTime hora) {
+        LocalDateTime inicioAg = LocalDateTime.of(data, hora);
         LocalDateTime fimAg = inicioAg.plusMinutes(servico.getDuracaoMediaEmMinutos());
 
         Specification<Indisponibilidade> spec = Specification.<Indisponibilidade>unrestricted()
@@ -118,7 +123,7 @@ public class AgendamentoValidator {
     }
 
     public void validarDataEHora(LocalDate data, LocalTime hora, Integer duracaoMinutos) {
-        validarData(data);
+        validarData(data, hora);
         validarIntervaloDentroDoFuncionamento(data, hora, duracaoMinutos);
     }
 
@@ -128,7 +133,10 @@ public class AgendamentoValidator {
     // ======================
 
     private void validarUsuarios(Usuario barbeiro, Usuario cliente) {
-        if (!barbeiro.isStatus() || !cliente.isStatus()) {
+        if (cliente == null || !cliente.isStatus()) {
+            throw new UsuarioDesativadoException();
+        }
+        if (barbeiro != null && !barbeiro.isStatus()) {
             throw new UsuarioDesativadoException();
         }
     }
@@ -139,18 +147,19 @@ public class AgendamentoValidator {
         }
     }
 
-    private void validarBarbeiro(Usuario barbeiro) {
+    public void validarBarbeiro(Usuario barbeiro) {
         if (barbeiro.getRole() != UserRole.BARBEIRO && barbeiro.getRole() != UserRole.ADMIN) {
             throw new UsuarioNaoBarbeiroException();
         }
     }
 
-    private void validarData(LocalDate data) {
-        LocalDate hoje = LocalDate.now();
+    private void validarData(LocalDate data, LocalTime hora) {
+        LocalDateTime inicio = LocalDateTime.of(data, hora);
+        LocalDateTime agora = LocalDateTime.now();
 
-        if (!data.isAfter(hoje)) {
+        if (inicio.isBefore(agora.plusMinutes(15))) {
             throw new AgendamentoHorarioInvalidoException(
-                    "Agendamentos devem ser feitos com pelo menos 1 dia de antecedência"
+                    "Agendamentos devem ser feitos com pelo menos 15 minutos de antecedência"
             );
         }
 

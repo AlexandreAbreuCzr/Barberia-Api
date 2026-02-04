@@ -1,7 +1,5 @@
 package com.alexandre.Barbearia_Api.service.usuario;
 
-import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioDesativadoException;
-import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,13 +16,25 @@ public class UserDetailsService implements org.springframework.security.core.use
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Usuario usuario = usuarioRepository.findByUsername(username)
-                .orElseThrow(UsuarioNotFoundException::new);
+        String normalized = normalizeLogin(username);
+        Usuario usuario = usuarioRepository.findByUsername(normalized)
+                .or(() -> usuarioRepository.findByEmail(normalizeEmail(normalized)))
+                .orElseThrow(() -> new UsernameNotFoundException("Credenciais invalidas"));
 
-        if (!usuario.isEnabled()) {
-            throw new UsuarioDesativadoException();
+        if (!Boolean.TRUE.equals(usuario.isStatus())) {
+            throw new UsernameNotFoundException("Credenciais invalidas");
         }
 
         return usuario;
+    }
+
+    private String normalizeLogin(String login) {
+        if (login == null) return "";
+        return login.trim();
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) return "";
+        return email.trim().toLowerCase();
     }
 }

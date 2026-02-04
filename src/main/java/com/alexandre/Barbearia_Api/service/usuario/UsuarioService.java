@@ -6,10 +6,12 @@ import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioNameDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioRoleDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioStatusDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioTelefoneDTO;
+import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioMeUpdateDTO;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
 import com.alexandre.Barbearia_Api.model.UserRole;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -18,9 +20,11 @@ import java.util.List;
 @Service
 public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository) {
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public void updateRole(String username, UsuarioRoleDTO dto){
@@ -82,6 +86,11 @@ public class UsuarioService {
         return UsuarioMapper.toResponses(usuarioRepository.findAll());
     }
 
+    public List<UsuarioResponseDTO> findBarbeirosAtivos() {
+        List<UserRole> roles = List.of(UserRole.BARBEIRO, UserRole.ADMIN);
+        return UsuarioMapper.toResponses(usuarioRepository.findByStatusAndRoleIn(true, roles));
+    }
+
     public UsuarioResponseDTO getUsuarioAutenticado(){
         Usuario usuario = (Usuario) SecurityContextHolder
                 .getContext()
@@ -90,8 +99,26 @@ public class UsuarioService {
         return UsuarioMapper.toResponse(usuario);
     }
 
-    // Metodos privados
-    
+    public void updateMe(UsuarioMeUpdateDTO dto) {
+        Usuario usuario = (Usuario) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        Usuario atual = getByUsername(usuario.getUsername());
+
+        if (dto.name() != null && !dto.name().isBlank()) {
+            atual.setName(dto.name().trim());
+        }
+        if (dto.telefone() != null && !dto.telefone().isBlank()) {
+            atual.setTelefone(dto.telefone());
+        }
+        if (dto.password() != null && !dto.password().isBlank()) {
+            atual.setPassword(passwordEncoder.encode(dto.password()));
+        }
+
+        usuarioRepository.save(atual);
+    }
 
     private Usuario getByUsername(String username){
         return usuarioRepository.findByUsername(username)

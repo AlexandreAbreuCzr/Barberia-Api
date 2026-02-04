@@ -18,7 +18,8 @@ public class AgendamentoSpecification {
             Long servicoId,
             LocalDate data,
             LocalTime hora,
-            AgendamentoStatus status
+            AgendamentoStatus status,
+            Boolean semBarbeiro
     ) {
         return (root, query, cb) -> {
 
@@ -27,7 +28,7 @@ public class AgendamentoSpecification {
             if (clienteUsername != null) {
                 predicates.add(
                         cb.equal(
-                                cb.lower(root.get("cliente").get("name")),
+                                cb.lower(root.get("cliente").get("username")),
                                 clienteUsername.toLowerCase()
                         )
                 );
@@ -36,10 +37,18 @@ public class AgendamentoSpecification {
             if (barbeiroUsername != null) {
                 predicates.add(
                         cb.equal(
-                                cb.lower(root.get("barbeiro").get("name")),
+                                cb.lower(root.get("barbeiro").get("username")),
                                 barbeiroUsername.toLowerCase()
                         )
                 );
+            }
+
+            if (semBarbeiro != null) {
+                if (semBarbeiro) {
+                    predicates.add(cb.isNull(root.get("barbeiro")));
+                } else {
+                    predicates.add(cb.isNotNull(root.get("barbeiro")));
+                }
             }
 
             if (servicoId != null) {

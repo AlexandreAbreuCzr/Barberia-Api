@@ -9,8 +9,11 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/servico")
@@ -45,6 +48,18 @@ public class ServicoController {
                 .body(servicoService.create(dto));
     }
 
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ServicoResponseDTO> createWithImage(
+            @RequestParam String name,
+            @RequestParam BigDecimal price,
+            @RequestParam Integer duracaoEmMinutos,
+            @RequestPart(required = false) MultipartFile image
+    ) throws java.io.IOException {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(servicoService.createWithImage(name, price, duracaoEmMinutos, image));
+    }
+
     @PatchMapping("/{id}")
     public ResponseEntity<Void> update(
             @PathVariable @Positive Long id,
@@ -52,6 +67,14 @@ public class ServicoController {
     ) {
         servicoService.update(id, dto);
         return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping(value = "/{id}/imagem", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ServicoResponseDTO> updateImage(
+            @PathVariable @Positive Long id,
+            @RequestPart MultipartFile image
+    ) throws java.io.IOException {
+        return ResponseEntity.ok(servicoService.updateImage(id, image));
     }
 
     @DeleteMapping("/{id}")

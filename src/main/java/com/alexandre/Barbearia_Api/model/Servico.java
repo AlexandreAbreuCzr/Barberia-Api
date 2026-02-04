@@ -28,6 +28,9 @@ public class Servico {
     @Column(nullable = false)
     private Integer duracaoMediaEmMinutos;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(nullable = false)
     private boolean status = true;
 
