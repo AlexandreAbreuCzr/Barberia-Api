@@ -11,9 +11,13 @@ import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioJaExisteExcep
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+
+import java.util.Map;
 
 @ControllerAdvice
 public class RestExceptionHandler extends ResponseEntityExceptionHandler {
@@ -165,5 +169,11 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler({ BadCredentialsException.class, UsernameNotFoundException.class })
+    public ResponseEntity<?> handleAuth() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", "Credenciais inválidas"));
     }
 }

@@ -150,7 +150,7 @@ public class AgendamentoService {
         Agendamento agendamento = getAgendamentoById(id);
 
         // autorização OK
-        if (!usuario.username().equals(agendamento.getBarbeiro().getUsername())
+        if (!usuario.role().equals(UserRole.BARBEIRO.getRole())
                 && !usuario.role().equals(UserRole.ADMIN.getRole())) {
             throw new UsuarioNaoBarbeiroException();
         }
@@ -159,6 +159,7 @@ public class AgendamentoService {
         if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO) {
             throw new AgendamentoStatusInvalidoException("Só pedidos REQUISITADOS podem ser aceitos");
         }
+
 
         agendamento.setAgendamentoStatus(AgendamentoStatus.AGENDADO);
         agendamentoRepository.save(agendamento);

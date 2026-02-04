@@ -11,22 +11,26 @@ import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AuthorizationService {
+public class AuthorizationService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthorizationService(
             UsuarioRepository usuarioRepository,
             AuthenticationManager authenticationManager,
             TokenService tokenService,
-            BCryptPasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder
     ) {
         this.usuarioRepository = usuarioRepository;
         this.authenticationManager = authenticationManager;
@@ -36,47 +40,67 @@ public class AuthorizationService {
 
     public LoginResponseDTO login(AuthenticationDTO data) {
 
-        var authToken =
-                new UsernamePasswordAuthenticationToken(data.username(), data.password());
+        String login = normalizeLogin(data.login());
 
+        var authToken = new UsernamePasswordAuthenticationToken(login, data.password());
         var auth = authenticationManager.authenticate(authToken);
 
-        var token = tokenService.generateToken((Usuario) auth.getPrincipal());
+        var usuario = (Usuario) auth.getPrincipal();
+        String token = tokenService.generateToken(usuario);
 
         return new LoginResponseDTO(token);
     }
 
     public ResponseEntity<?> register(UsuarioRegisterDTO data) {
-        if (usuarioRepository.existsByUsername(data.username())) {
+
+        String username = data.username().trim();
+        String email = normalizeEmail(data.email());
+
+        if (usuarioRepository.existsByUsername(username)) {
             throw new UsuarioJaExisteException("Username já está em uso");
         }
-
-        if (usuarioRepository.existsByEmail(data.email())) {
+        if (usuarioRepository.existsByEmail(email)) {
             throw new UsuarioJaExisteException("Email já está em uso");
-        }
-
-        if (usuarioRepository.findByUsername(data.username()).isPresent()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (usuarioRepository.findByEmail(data.email()).isPresent()) {
-            return ResponseEntity.badRequest().build();
         }
 
         String encryptedPassword = passwordEncoder.encode(data.password());
 
         Usuario usuario = new Usuario(
-                data.username(),
+                username,
                 data.name(),
-                data.email(),
+                email,
                 encryptedPassword,
                 data.role()
         );
 
         usuarioRepository.save(usuario);
-
         return ResponseEntity.ok().build();
     }
 
-}
+    @Override
+    public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
 
+        String normalized = normalizeLogin(login);
+
+        Usuario usuario = usuarioRepository.findByUsername(normalized)
+                .or(() -> usuarioRepository.findByEmail(normalizeEmail(normalized)))
+                .orElseThrow(() -> new UsernameNotFoundException("Credenciais inválidas"));
+
+        // anti-enumeração: mesma mensagem
+        if (!Boolean.TRUE.equals(usuario.isStatus())) {
+            throw new UsernameNotFoundException("Credenciais inválidas");
+        }
+
+        return usuario;
+    }
+
+    private String normalizeLogin(String login) {
+        if (login == null) return "";
+        return login.trim();
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) return "";
+        return email.trim().toLowerCase();
+    }
+}
