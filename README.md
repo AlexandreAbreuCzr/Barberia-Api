@@ -1,10 +1,10 @@
 # Barbearia API
 
-API REST para gerenciamento de barbearia (usuarios, servicos, agendamentos, comissoes e caixa).
+API REST para gerenciamento de barbearia (usuarios, servicos, agendamentos, comissoes, caixa e avaliacoes).
 Feita com Spring Boot 3 + PostgreSQL.
 
 ## Tecnologias
-- Java 25
+- Java 17
 - Spring Boot 3
 - Spring Data JPA
 - PostgreSQL
@@ -49,6 +49,16 @@ CREATE DATABASE barbearia_api;
 ```
 A API sobe em `http://localhost:8080`.
 
+## Docker
+1. Copie o arquivo `.env.example` para `.env` e ajuste os valores
+2. Suba os containers
+```bash
+docker compose up --build
+```
+A API sobe em `http://localhost:8080` e o Postgres em `localhost:5432`.
+
+Os uploads ficam persistidos em `./uploads`.
+
 ## Variaveis obrigatorias
 | Variavel | Descricao |
 | --- | --- |
@@ -61,6 +71,10 @@ A API sobe em `http://localhost:8080`.
 | `MAIL_USERNAME` | Usuario SMTP |
 | `MAIL_PASSWORD` | Senha SMTP (senha de app) |
 | `MAIL_FROM` | Email remetente |
+
+## Flyway
+As migrations ficam em `src/main/resources/db.migration`.
+Ultima migration adicionada: `V9__create_avaliacao.sql`.
 
 ## Autenticacao
 - Login: `POST /auth/login`
@@ -146,6 +160,12 @@ Filtros em `GET /indisponibilidade`
 | Endpoint | Metodo | Descricao | Acesso |
 | --- | --- | --- | --- |
 | `/uploads/**` | GET | Imagens de servicos | Publico |
+
+## Avaliacoes
+| Endpoint | Metodo | Descricao | Acesso |
+| --- | --- | --- | --- |
+| `/avaliacao` | GET | Listar avaliacoes | Publico |
+| `/avaliacao` | POST | Criar avaliacao | Publico |
 
 ## Contribuicao
 1. Fork

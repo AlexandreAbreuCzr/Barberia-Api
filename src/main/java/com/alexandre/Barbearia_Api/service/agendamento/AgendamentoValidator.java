@@ -78,6 +78,7 @@ public class AgendamentoValidator {
     // ======================
 
     public void validarIndisponibilidade(Usuario barbeiro, Servico servico, LocalDate data, LocalTime hora) {
+        if (barbeiro == null) return;
         LocalDateTime inicioAg = LocalDateTime.of(data, hora);
         LocalDateTime fimAg = inicioAg.plusMinutes(servico.getDuracaoMediaEmMinutos());
 

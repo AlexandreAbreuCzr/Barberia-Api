@@ -9,9 +9,11 @@ import com.alexandre.Barbearia_Api.infra.exceptions.servico.ServicoNotFoundExcep
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.PasswordResetCodeInvalidException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioDesativadoException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioJaExisteException;
+import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNaoBarbeiroException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -53,6 +55,39 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(UsuarioNaoBarbeiroException.class)
+    private ResponseEntity<ApiErrorDTO> usuarioNaoBarbeiroHandler(UsuarioNaoBarbeiroException exception){
+        ApiErrorDTO error = new ApiErrorDTO(
+                HttpStatus.FORBIDDEN.value(),
+                "FORBIDDEN",
+                exception.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    private ResponseEntity<ApiErrorDTO> accessDeniedHandler(AccessDeniedException exception){
+        ApiErrorDTO error = new ApiErrorDTO(
+                HttpStatus.FORBIDDEN.value(),
+                "FORBIDDEN",
+                exception.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    private ResponseEntity<ApiErrorDTO> illegalArgumentHandler(IllegalArgumentException exception){
+        ApiErrorDTO error = new ApiErrorDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "BAD_REQUEST",
+                exception.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     @ExceptionHandler(PasswordResetCodeInvalidException.class)

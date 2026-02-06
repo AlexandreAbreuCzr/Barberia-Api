@@ -38,6 +38,9 @@ public class Indisponibilidade {
     @Column(nullable = false)
     private LocalDateTime fim;
 
+    @CreationTimestamp
+    private LocalDateTime dataDeCriacao;
+
     @UpdateTimestamp
     private LocalDateTime dataDeModificacao;
 

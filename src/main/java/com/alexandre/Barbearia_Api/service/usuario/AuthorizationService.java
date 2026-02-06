@@ -8,13 +8,13 @@ import com.alexandre.Barbearia_Api.infra.security.TokenService;
 import com.alexandre.Barbearia_Api.model.UserRole;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -22,18 +22,18 @@ import org.springframework.stereotype.Service;
 public class AuthorizationService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
-    private final AuthenticationManager authenticationManager;
+    private final ObjectProvider<AuthenticationManager> authenticationManagerProvider;
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
 
     public AuthorizationService(
             UsuarioRepository usuarioRepository,
-            AuthenticationManager authenticationManager,
+            ObjectProvider<AuthenticationManager> authenticationManagerProvider,
             TokenService tokenService,
             PasswordEncoder passwordEncoder
     ) {
         this.usuarioRepository = usuarioRepository;
-        this.authenticationManager = authenticationManager;
+        this.authenticationManagerProvider = authenticationManagerProvider;
         this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -43,7 +43,7 @@ public class AuthorizationService implements UserDetailsService {
         String login = normalizeLogin(data.login());
 
         var authToken = new UsernamePasswordAuthenticationToken(login, data.password());
-        var auth = authenticationManager.authenticate(authToken);
+        var auth = authenticationManagerProvider.getObject().authenticate(authToken);
 
         var usuario = (Usuario) auth.getPrincipal();
         String token = tokenService.generateToken(usuario);
@@ -53,8 +53,9 @@ public class AuthorizationService implements UserDetailsService {
 
     public ResponseEntity<?> register(UsuarioRegisterDTO data) {
 
-        String username = data.username().trim();
+        String username = normalizeUsername(data.username());
         String email = normalizeEmail(data.email());
+        String telefone = normalizeTelefone(data.telefone());
 
         if (usuarioRepository.existsByUsername(username)) {
             throw new UsuarioJaExisteException("Username já está em uso");
@@ -67,11 +68,14 @@ public class AuthorizationService implements UserDetailsService {
 
         Usuario usuario = new Usuario(
                 username,
-                data.name(),
+                data.name().trim(),
                 email,
                 encryptedPassword,
-                data.role()
+                UserRole.USER
         );
+        if (telefone != null && !telefone.isBlank()) {
+            usuario.setTelefone(telefone);
+        }
 
         usuarioRepository.save(usuario);
         return ResponseEntity.ok().build();
@@ -96,11 +100,22 @@ public class AuthorizationService implements UserDetailsService {
 
     private String normalizeLogin(String login) {
         if (login == null) return "";
-        return login.trim();
+        return login.trim().toLowerCase();
+    }
+
+    private String normalizeUsername(String username) {
+        if (username == null) return "";
+        return username.trim().toLowerCase();
     }
 
     private String normalizeEmail(String email) {
         if (email == null) return "";
         return email.trim().toLowerCase();
+    }
+
+    private String normalizeTelefone(String telefone) {
+        if (telefone == null) return null;
+        String cleaned = telefone.replaceAll("\\D", "");
+        return cleaned.isBlank() ? null : cleaned;
     }
 }

@@ -13,7 +13,7 @@ public class IndisponibilidadeMapper {
                 indisponibilidade.getTipo(),
                 indisponibilidade.getInicio(),
                 indisponibilidade.getFim(),
-                indisponibilidade.getDataDeModificacao(),
+                indisponibilidade.getDataDeCriacao(),
                 indisponibilidade.getDataDeModificacao()
         );
     }

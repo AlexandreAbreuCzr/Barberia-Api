@@ -3,14 +3,18 @@ package com.alexandre.Barbearia_Api.service.indisponibilidade;
 import com.alexandre.Barbearia_Api.dto.indisponibilidade.IndisponibilidadeCreateDTO;
 import com.alexandre.Barbearia_Api.dto.indisponibilidade.IndisponibilidadeResponseDTO;
 import com.alexandre.Barbearia_Api.dto.indisponibilidade.mapper.IndisponibilidadeMapper;
+import com.alexandre.Barbearia_Api.dto.usuario.UsuarioResponseDTO;
 import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.IndisponibilidadeNotFoundException;
 import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.IndisponibilidadeNotFoundInicioFimException;
+import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNaoBarbeiroException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
 import com.alexandre.Barbearia_Api.model.Indisponibilidade;
 import com.alexandre.Barbearia_Api.model.TipoIndisponibilidade;
+import com.alexandre.Barbearia_Api.model.UserRole;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import com.alexandre.Barbearia_Api.repository.IndisponibilidadeRepository;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
+import com.alexandre.Barbearia_Api.service.usuario.UsuarioService;
 import com.alexandre.Barbearia_Api.specificifications.IndisponibilidadeSpecification;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -23,10 +27,16 @@ public class IndisponibilidadeService {
 
     private final IndisponibilidadeRepository indisponibilidadeRepository;
     private final UsuarioRepository usuarioRepository;
+    private final UsuarioService usuarioService;
 
-    public IndisponibilidadeService(IndisponibilidadeRepository indisponibilidadeRepository, UsuarioRepository usuarioRepository) {
+    public IndisponibilidadeService(
+            IndisponibilidadeRepository indisponibilidadeRepository,
+            UsuarioRepository usuarioRepository,
+            UsuarioService usuarioService
+    ) {
         this.indisponibilidadeRepository = indisponibilidadeRepository;
         this.usuarioRepository = usuarioRepository;
+        this.usuarioService = usuarioService;
     }
 
     //=======================
@@ -40,7 +50,21 @@ public class IndisponibilidadeService {
 
         validarIntervalo(dto.inicio(), dto.fim());
 
-        indisponibilidade.setBarbeiro(getUsuarioByUsername(dto.barbeiroUsername()));
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
+        String role = usuario.role();
+        String alvoUsername = dto.barbeiroUsername();
+
+        if (UserRole.ADMIN.name().equalsIgnoreCase(role)) {
+            if (alvoUsername == null || alvoUsername.isBlank()) {
+                throw new UsuarioNaoBarbeiroException("Informe o barbeiro responsável.");
+            }
+        } else if (UserRole.BARBEIRO.name().equalsIgnoreCase(role)) {
+            alvoUsername = usuario.username();
+        } else {
+            throw new UsuarioNaoBarbeiroException();
+        }
+
+        indisponibilidade.setBarbeiro(getUsuarioByUsername(alvoUsername));
         indisponibilidade.setTipo(dto.tipo());
         indisponibilidade.setInicio(dto.inicio());
         indisponibilidade.setFim(dto.fim());
@@ -61,6 +85,10 @@ public class IndisponibilidadeService {
             LocalDateTime fim,
             TipoIndisponibilidade tipo
     ) {
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
+        if (!UserRole.ADMIN.name().equalsIgnoreCase(usuario.role())) {
+            barbeiroUsername = usuario.username();
+        }
         Specification<Indisponibilidade> spec = Specification.unrestricted();
 
 
@@ -82,7 +110,19 @@ public class IndisponibilidadeService {
     }
     // Delete
     public void delete(Long id){
-        indisponibilidadeRepository.delete(getById(id));
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
+        Indisponibilidade indisponibilidade = getById(id);
+
+        if (!UserRole.ADMIN.name().equalsIgnoreCase(usuario.role())) {
+            String barbeiroUsername = indisponibilidade.getBarbeiro() != null
+                    ? indisponibilidade.getBarbeiro().getUsername()
+                    : null;
+            if (barbeiroUsername == null || !barbeiroUsername.equalsIgnoreCase(usuario.username())) {
+                throw new UsuarioNaoBarbeiroException("Você não pode remover indisponibilidades de outro barbeiro.");
+            }
+        }
+
+        indisponibilidadeRepository.delete(indisponibilidade);
     }
 
     //=======================
@@ -104,7 +144,7 @@ public class IndisponibilidadeService {
     private void validarIntervalo(LocalDateTime inicio, LocalDateTime fim) {
         if (inicio == null || fim == null) throw new IndisponibilidadeNotFoundInicioFimException();
         if (!fim.isAfter(inicio)) {
-            throw new IllegalArgumentException("Fim deve ser depois do início.");
+            throw new IndisponibilidadeNotFoundInicioFimException("Fim deve ser depois do início.");
         }
     }
 

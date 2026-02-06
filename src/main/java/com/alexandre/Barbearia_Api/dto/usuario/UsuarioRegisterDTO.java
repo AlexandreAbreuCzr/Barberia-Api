@@ -1,6 +1,5 @@
-package com.alexandre.Barbearia_Api.dto.usuario;
+﻿package com.alexandre.Barbearia_Api.dto.usuario;
 
-import com.alexandre.Barbearia_Api.model.UserRole;
 import jakarta.validation.constraints.*;
 
 
@@ -30,8 +29,6 @@ public record UsuarioRegisterDTO(
 
         @NotBlank
         @Size(min = 8)
-        String password,
-
-        @NotNull
-        UserRole role
+        String password
 ) {}
+

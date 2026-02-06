@@ -1,4 +1,4 @@
-package com.alexandre.Barbearia_Api.service.agendamento;
+﻿package com.alexandre.Barbearia_Api.service.agendamento;
 
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoCreateDTO;
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoResponseDTO;
@@ -18,6 +18,7 @@ import com.alexandre.Barbearia_Api.service.comissao.ComissaoService;
 import com.alexandre.Barbearia_Api.service.usuario.UsuarioService;
 import com.alexandre.Barbearia_Api.specificifications.AgendamentoSpecification;
 import jakarta.transaction.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.*;
@@ -62,6 +63,11 @@ public class AgendamentoService {
     // Criador de agendamento
 
     public AgendamentoResponseDTO create(AgendamentoCreateDTO dto) {
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
+        if (!isAdmin(usuario) && (dto.clienteUsername() == null
+                || !dto.clienteUsername().equalsIgnoreCase(usuario.username()))) {
+            throw new AccessDeniedException("Você não pode criar agendamento para outro usuário.");
+        }
 
         Usuario barbeiro = null;
         if (dto.barbeiroUsername() != null && !dto.barbeiroUsername().isBlank()) {
@@ -88,18 +94,28 @@ public class AgendamentoService {
     // apagar e cancelar
 
     public void delete(Long id){
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
+        if (!isAdmin(usuario) && !isCliente(agendamento, usuario.username())) {
+            throw new AccessDeniedException("Você não pode excluir este agendamento.");
+        }
         if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO){
-            throw new AgendamentoStatusInvalidoException("Agendamento já foi aceito pelo barbeiro não e possivel apagar apenas cancelar");
+            throw new AgendamentoStatusInvalidoException(
+                    "Agendamento já foi aceito pelo barbeiro; não é possível apagar, apenas cancelar."
+            );
         }
         agendamentoRepository.delete(agendamento);
     }
 
     public void cancelar(Long id){
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
+        if (!isAdmin(usuario) && !isCliente(agendamento, usuario.username()) && !isBarbeiroDoAgendamento(agendamento, usuario.username())) {
+            throw new AccessDeniedException("Você não pode cancelar este agendamento.");
+        }
         AgendamentoStatus status = agendamento.getAgendamentoStatus();
         if (status != AgendamentoStatus.REQUISITADO && status != AgendamentoStatus.AGENDADO){
-            throw new AgendamentoStatusInvalidoException("Agendamento nao pode ser cancelado neste status");
+            throw new AgendamentoStatusInvalidoException("Agendamento não pode ser cancelado neste status");
         }
         agendamento.setAgendamentoStatus(AgendamentoStatus.CANCELADO);
         agendamentoRepository.save(agendamento);
@@ -109,21 +125,28 @@ public class AgendamentoService {
 
     public void update(Long id, AgendamentoUpdateDTO dto) {
 
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
+        if (!isAdmin(usuario) && !isCliente(agendamento, usuario.username())) {
+            throw new AccessDeniedException("Você não pode alterar este agendamento.");
+        }
         validator.validarAtualizacao(agendamento);
 
         LocalDate novaData = dto.data() != null ? dto.data() : agendamento.getData();
         LocalTime novaHora = dto.hora() != null ? dto.hora() : agendamento.getHora();
 
         validator.validarDataEHora(novaData, novaHora, agendamento.getServico().getDuracaoMediaEmMinutos());
-        validator.validarIndisponibilidade(agendamento.getBarbeiro(), agendamento.getServico(), novaData, novaHora);
-        horarioValidator.validarDisponibilidade(
-                agendamento.getBarbeiro(),
-                novaData,
-                novaHora,
-                agendamento.getServico(),
-                agendamento.getId()
-        );
+        Usuario barbeiro = agendamento.getBarbeiro();
+        if (barbeiro != null) {
+            validator.validarIndisponibilidade(barbeiro, agendamento.getServico(), novaData, novaHora);
+            horarioValidator.validarDisponibilidade(
+                    barbeiro,
+                    novaData,
+                    novaHora,
+                    agendamento.getServico(),
+                    agendamento.getId()
+            );
+        }
 
         agendamento.setData(novaData);
         agendamento.setHora(novaHora);
@@ -137,7 +160,7 @@ public class AgendamentoService {
         agendamentoRepository.save(agendamento);
     }
 
-    // Metodos de manipulação objetivos
+    // Métodos de manipulação objetivos
 
     @Transactional
     public void finalizar(Long id) {
@@ -212,8 +235,17 @@ public class AgendamentoService {
     // Finds e gets
 
     public AgendamentoResponseDTO findById(Long id){
-        return AgendamentoMapper.toResponse(agendamentoRepository.findById(id)
-                .orElseThrow(AgendamentoNotFoundException::new));
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
+        Agendamento agendamento = agendamentoRepository.findById(id)
+                .orElseThrow(AgendamentoNotFoundException::new);
+
+        if (!isAdmin(usuario)
+                && !isCliente(agendamento, usuario.username())
+                && !isBarbeiroDoAgendamento(agendamento, usuario.username())) {
+            throw new AccessDeniedException("Você não pode acessar este agendamento.");
+        }
+
+        return AgendamentoMapper.toResponse(agendamento);
     }
 
 
@@ -226,15 +258,35 @@ public class AgendamentoService {
             AgendamentoStatus status,
             Boolean semBarbeiro
     ) {
+        UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
+        String clienteFiltro = clienteUserName;
+        String barbeiroFiltro = barbeiroUserName;
+        Boolean semBarbeiroFiltro = semBarbeiro;
+
+        if (isAdmin(usuario)) {
+            // sem restrições adicionais
+        } else if (isBarbeiro(usuario)) {
+            if (barbeiroFiltro != null && !barbeiroFiltro.equalsIgnoreCase(usuario.username())) {
+                throw new AccessDeniedException("Você não pode consultar agendamentos de outro barbeiro.");
+            }
+            if (barbeiroFiltro == null && semBarbeiroFiltro == null) {
+                barbeiroFiltro = usuario.username();
+            }
+        } else {
+            clienteFiltro = usuario.username();
+            barbeiroFiltro = null;
+            semBarbeiroFiltro = null;
+        }
+
         return agendamentoRepository.findAll(
                 AgendamentoSpecification.filtro(
-                        clienteUserName,
-                        barbeiroUserName,
+                        clienteFiltro,
+                        barbeiroFiltro,
                         servicoId,
                         data,
                         hora,
                         status,
-                        semBarbeiro
+                        semBarbeiroFiltro
                 )
         ).stream().map(AgendamentoMapper::toResponse).toList();
     }
@@ -248,7 +300,7 @@ public class AgendamentoService {
 
     }
 
-    // Metodos privados de get
+    // Métodos privados de get
 
     private Usuario getUsuarioByUsername(String username) {
         return usuarioRepository.findByUsername(username)
@@ -265,4 +317,23 @@ public class AgendamentoService {
                 .orElseThrow(AgendamentoNotFoundException::new);
     }
 
+    private boolean isAdmin(UsuarioResponseDTO usuario) {
+        return UserRole.ADMIN.name().equalsIgnoreCase(usuario.role());
+    }
+
+    private boolean isBarbeiro(UsuarioResponseDTO usuario) {
+        return UserRole.BARBEIRO.name().equalsIgnoreCase(usuario.role());
+    }
+
+    private boolean isCliente(Agendamento agendamento, String username) {
+        return agendamento.getCliente() != null
+                && agendamento.getCliente().getUsername().equalsIgnoreCase(username);
+    }
+
+    private boolean isBarbeiroDoAgendamento(Agendamento agendamento, String username) {
+        return agendamento.getBarbeiro() != null
+                && agendamento.getBarbeiro().getUsername().equalsIgnoreCase(username);
+    }
+
 }
+
