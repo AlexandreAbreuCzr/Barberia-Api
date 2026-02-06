@@ -1,4 +1,4 @@
-﻿package com.alexandre.Barbearia_Api.dto.usuario;
+package com.alexandre.Barbearia_Api.dto.usuario;
 
 import jakarta.validation.constraints.*;
 

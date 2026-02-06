@@ -1,4 +1,4 @@
-﻿package com.alexandre.Barbearia_Api.service.agendamento;
+package com.alexandre.Barbearia_Api.service.agendamento;
 
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoCreateDTO;
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoResponseDTO;
