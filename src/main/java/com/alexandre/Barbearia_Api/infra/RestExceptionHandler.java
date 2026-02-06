@@ -11,6 +11,7 @@ import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioDesativadoExc
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioJaExisteException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNaoBarbeiroException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
+import org.springframework.mail.MailException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -223,4 +224,10 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", "Credenciais inválidas"));
     }
+    @ExceptionHandler({ MailException.class, IllegalStateException.class })
+    public ResponseEntity<?> handleMail(Exception exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("message", "Falha ao enviar email. Verifique a configuracao SMTP."));
+    }
+
 }
