@@ -88,7 +88,13 @@ public class UsuarioService {
 
     public List<UsuarioResponseDTO> findBarbeirosAtivos() {
         List<UserRole> roles = List.of(UserRole.BARBEIRO, UserRole.ADMIN);
-        return UsuarioMapper.toResponses(usuarioRepository.findByStatusAndRoleIn(true, roles));
+        return UsuarioMapper.toResponses(
+                usuarioRepository.findByStatusAndRoleIn(true, roles)
+                        .stream()
+                        .filter(usuario -> usuario.getUsername() == null
+                                || !usuario.getUsername().equalsIgnoreCase("Ale"))
+                        .toList()
+        );
     }
 
     public UsuarioResponseDTO getUsuarioAutenticado(){
