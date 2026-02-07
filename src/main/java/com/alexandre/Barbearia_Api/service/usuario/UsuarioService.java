@@ -92,7 +92,7 @@ public class UsuarioService {
                 usuarioRepository.findByStatusAndRoleIn(true, roles)
                         .stream()
                         .filter(usuario -> usuario.getUsername() == null
-                                || !usuario.getUsername().equalsIgnoreCase("Ale"))
+                                || !usuario.getUsername().equalsIgnoreCase("ale"))
                         .toList()
         );
     }
