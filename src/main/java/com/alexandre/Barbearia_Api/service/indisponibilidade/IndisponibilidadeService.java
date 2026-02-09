@@ -51,14 +51,14 @@ public class IndisponibilidadeService {
         validarIntervalo(dto.inicio(), dto.fim());
 
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
-        String role = usuario.role();
+        UserRole role = UserRole.from(usuario.role());
         String alvoUsername = dto.barbeiroUsername();
 
-        if (UserRole.ADMIN.name().equalsIgnoreCase(role)) {
+        if (isGestaoAgendaRole(role)) {
             if (alvoUsername == null || alvoUsername.isBlank()) {
                 throw new UsuarioNaoBarbeiroException("Informe o barbeiro responsável.");
             }
-        } else if (UserRole.BARBEIRO.name().equalsIgnoreCase(role)) {
+        } else if (role == UserRole.BARBEIRO) {
             alvoUsername = usuario.username();
         } else {
             throw new UsuarioNaoBarbeiroException();
@@ -86,7 +86,7 @@ public class IndisponibilidadeService {
             TipoIndisponibilidade tipo
     ) {
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
-        if (!UserRole.ADMIN.name().equalsIgnoreCase(usuario.role())) {
+        if (!isGestaoAgendaRole(UserRole.from(usuario.role()))) {
             barbeiroUsername = usuario.username();
         }
         Specification<Indisponibilidade> spec = Specification.unrestricted();
@@ -113,7 +113,7 @@ public class IndisponibilidadeService {
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Indisponibilidade indisponibilidade = getById(id);
 
-        if (!UserRole.ADMIN.name().equalsIgnoreCase(usuario.role())) {
+        if (!isGestaoAgendaRole(UserRole.from(usuario.role()))) {
             String barbeiroUsername = indisponibilidade.getBarbeiro() != null
                     ? indisponibilidade.getBarbeiro().getUsername()
                     : null;
@@ -148,4 +148,7 @@ public class IndisponibilidadeService {
         }
     }
 
+    private boolean isGestaoAgendaRole(UserRole role) {
+        return role == UserRole.ADMIN || role == UserRole.GERENTE;
+    }
 }

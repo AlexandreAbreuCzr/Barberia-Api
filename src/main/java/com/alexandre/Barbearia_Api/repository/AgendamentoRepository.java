@@ -26,6 +26,7 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long>,
             LocalDate inicio,
             LocalDate fim
     );
+    List<Agendamento> findByDataBetween(LocalDate inicio, LocalDate fim);
     List<Agendamento> findByData(LocalDate data);
     List<Agendamento> findByAgendamentoStatus(AgendamentoStatus agendamentoStatus);
     @Modifying

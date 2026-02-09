@@ -73,7 +73,7 @@ public class AgendamentoService {
 
     public AgendamentoResponseDTO create(AgendamentoCreateDTO dto) {
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
-        if (!isAdmin(usuario) && (dto.clienteUsername() == null
+        if (!canManageAgenda(usuario) && (dto.clienteUsername() == null
                 || !dto.clienteUsername().equalsIgnoreCase(usuario.username()))) {
             throw new AccessDeniedException("Você não pode criar agendamento para outro usuário.");
         }
@@ -105,7 +105,7 @@ public class AgendamentoService {
     public void delete(Long id){
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
-        if (!isAdmin(usuario) && !isCliente(agendamento, usuario.username())) {
+        if (!canManageAgenda(usuario) && !isCliente(agendamento, usuario.username())) {
             throw new AccessDeniedException("Você não pode excluir este agendamento.");
         }
         if (agendamento.getAgendamentoStatus() != AgendamentoStatus.REQUISITADO){
@@ -119,7 +119,9 @@ public class AgendamentoService {
     public void cancelar(Long id){
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
-        if (!isAdmin(usuario) && !isCliente(agendamento, usuario.username()) && !isBarbeiroDoAgendamento(agendamento, usuario.username())) {
+        if (!canManageAgenda(usuario)
+                && !isCliente(agendamento, usuario.username())
+                && !isBarbeiroDoAgendamento(agendamento, usuario.username())) {
             throw new AccessDeniedException("Você não pode cancelar este agendamento.");
         }
         AgendamentoStatus status = agendamento.getAgendamentoStatus();
@@ -136,7 +138,7 @@ public class AgendamentoService {
 
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Agendamento agendamento = getAgendamentoById(id);
-        if (!isAdmin(usuario) && !isCliente(agendamento, usuario.username())) {
+        if (!canManageAgenda(usuario) && !isCliente(agendamento, usuario.username())) {
             throw new AccessDeniedException("Você não pode alterar este agendamento.");
         }
         validator.validarAtualizacao(agendamento);
@@ -202,9 +204,7 @@ public class AgendamentoService {
         Agendamento agendamento = getAgendamentoById(id);
 
         // autorização OK
-        String role = usuario.role();
-        if (!UserRole.BARBEIRO.name().equalsIgnoreCase(role)
-                && !UserRole.ADMIN.name().equalsIgnoreCase(role)) {
+        if (!canAcceptAppointment(usuario)) {
             throw new UsuarioNaoBarbeiroException();
         }
 
@@ -231,7 +231,7 @@ public class AgendamentoService {
             );
             agendamento.setBarbeiro(barbeiro);
         } else if (!agendamento.getBarbeiro().getUsername().equalsIgnoreCase(usuario.username())
-                && !UserRole.ADMIN.name().equalsIgnoreCase(role)) {
+                && !hasRole(usuario, UserRole.ADMIN)) {
             throw new UsuarioNaoBarbeiroException();
         }
 
@@ -248,7 +248,7 @@ public class AgendamentoService {
         Agendamento agendamento = agendamentoRepository.findById(id)
                 .orElseThrow(AgendamentoNotFoundException::new);
 
-        if (!isAdmin(usuario)
+        if (!canManageAgenda(usuario)
                 && !isCliente(agendamento, usuario.username())
                 && !isBarbeiroDoAgendamento(agendamento, usuario.username())) {
             throw new AccessDeniedException("Você não pode acessar este agendamento.");
@@ -274,7 +274,7 @@ public class AgendamentoService {
         String barbeiroFiltro = barbeiroUserName;
         Boolean semBarbeiroFiltro = semBarbeiro;
 
-        if (isAdmin(usuario)) {
+        if (canManageAgenda(usuario)) {
             // sem restrições adicionais
         } else if (isBarbeiro(usuario)) {
             if (barbeiroFiltro != null && !barbeiroFiltro.equalsIgnoreCase(usuario.username())) {
@@ -391,12 +391,26 @@ public class AgendamentoService {
                 .orElseThrow(AgendamentoNotFoundException::new);
     }
 
-    private boolean isAdmin(UsuarioResponseDTO usuario) {
-        return UserRole.ADMIN.name().equalsIgnoreCase(usuario.role());
+    private boolean hasRole(UsuarioResponseDTO usuario, UserRole... roles) {
+        UserRole role = UserRole.from(usuario != null ? usuario.role() : null);
+        if (role == null || roles == null || roles.length == 0) return false;
+
+        for (UserRole allowed : roles) {
+            if (allowed == role) return true;
+        }
+        return false;
+    }
+
+    private boolean canManageAgenda(UsuarioResponseDTO usuario) {
+        return hasRole(usuario, UserRole.ADMIN, UserRole.GERENTE, UserRole.RECEPCIONISTA);
+    }
+
+    private boolean canAcceptAppointment(UsuarioResponseDTO usuario) {
+        return hasRole(usuario, UserRole.BARBEIRO, UserRole.ADMIN);
     }
 
     private boolean isBarbeiro(UsuarioResponseDTO usuario) {
-        return UserRole.BARBEIRO.name().equalsIgnoreCase(usuario.role());
+        return hasRole(usuario, UserRole.BARBEIRO);
     }
 
     private boolean isCliente(Agendamento agendamento, String username) {
