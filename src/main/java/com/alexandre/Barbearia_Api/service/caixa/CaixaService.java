@@ -116,7 +116,7 @@ public class CaixaService {
                 periodo,
                 range.referencia(),
                 resumo,
-                "NFC-e exige integracao com SEFAZ e certificado digital; por enquanto o sistema salva status pendente."
+                null
         );
     }
 
