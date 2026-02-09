@@ -1,5 +1,8 @@
 package com.alexandre.Barbearia_Api.service.caixa;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.alexandre.Barbearia_Api.dto.caixa.CaixaCreateDTO;
 import com.alexandre.Barbearia_Api.dto.caixa.CaixaResponseDTO;
 import com.alexandre.Barbearia_Api.dto.caixa.fechamento.CaixaFechamentoCreateDTO;
@@ -26,13 +29,23 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -47,19 +60,47 @@ public class CaixaService {
     private final UsuarioRepository usuarioRepository;
     private final ComissaoRepository comissaoRepository;
     private final String nfceProvider;
+    private final String nfceNuvemFiscalBaseUrl;
+    private final String nfceNuvemFiscalToken;
+    private final String nfceNuvemFiscalAmbiente;
+    private final String nfceNuvemFiscalPrestadorCpfCnpj;
+    private final String nfceNuvemFiscalCodigoServico;
+    private final String nfceNuvemFiscalItemListaServico;
+    private final String nfceNuvemFiscalMunicipioCodigo;
+    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
 
     public CaixaService(
             CaixaRepository caixaRepository,
             CaixaFechamentoRepository caixaFechamentoRepository,
             UsuarioRepository usuarioRepository,
             ComissaoRepository comissaoRepository,
-            @Value("${app.nfce.provider:mock}") String nfceProvider
+            ObjectMapper objectMapper,
+            @Value("${app.nfce.provider:mock}") String nfceProvider,
+            @Value("${app.nfce.nuvemfiscal.base-url:https://api.nuvemfiscal.com.br}") String nfceNuvemFiscalBaseUrl,
+            @Value("${app.nfce.nuvemfiscal.token:}") String nfceNuvemFiscalToken,
+            @Value("${app.nfce.nuvemfiscal.ambiente:homologacao}") String nfceNuvemFiscalAmbiente,
+            @Value("${app.nfce.nuvemfiscal.prestador-cpf-cnpj:}") String nfceNuvemFiscalPrestadorCpfCnpj,
+            @Value("${app.nfce.nuvemfiscal.codigo-servico:}") String nfceNuvemFiscalCodigoServico,
+            @Value("${app.nfce.nuvemfiscal.item-lista-servico:}") String nfceNuvemFiscalItemListaServico,
+            @Value("${app.nfce.nuvemfiscal.municipio-codigo:}") String nfceNuvemFiscalMunicipioCodigo
     ) {
         this.caixaRepository = caixaRepository;
         this.caixaFechamentoRepository = caixaFechamentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.comissaoRepository = comissaoRepository;
+        this.objectMapper = objectMapper;
         this.nfceProvider = nfceProvider;
+        this.nfceNuvemFiscalBaseUrl = nfceNuvemFiscalBaseUrl;
+        this.nfceNuvemFiscalToken = nfceNuvemFiscalToken;
+        this.nfceNuvemFiscalAmbiente = nfceNuvemFiscalAmbiente;
+        this.nfceNuvemFiscalPrestadorCpfCnpj = nfceNuvemFiscalPrestadorCpfCnpj;
+        this.nfceNuvemFiscalCodigoServico = nfceNuvemFiscalCodigoServico;
+        this.nfceNuvemFiscalItemListaServico = nfceNuvemFiscalItemListaServico;
+        this.nfceNuvemFiscalMunicipioCodigo = nfceNuvemFiscalMunicipioCodigo;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(20))
+                .build();
     }
 
     public Caixa createEntradaAgendamento(Agendamento agendamento) {
@@ -398,6 +439,8 @@ public class CaixaService {
             if ("mock".equals(provider)) {
                 fechamento.setNfceStatus(CaixaFechamentoNfceStatus.EMITIDA);
                 fechamento.setNfceChave(generateMockNfceKey(fechamento.getId()));
+            } else if ("nuvemfiscal".equals(provider)) {
+                emitirNfceNuvemFiscal(fechamento);
             } else {
                 fechamento.setNfceStatus(CaixaFechamentoNfceStatus.PENDENTE_INTEGRACAO);
                 if (fechamento.getNfceChave() != null && fechamento.getNfceChave().startsWith("MOCK-")) {
@@ -415,12 +458,201 @@ public class CaixaService {
 
     private String buildNfceInfo() {
         return switch (providerName()) {
-            case "mock" -> "NFC-e em modo MOCK: o sistema gera chave simulada para testes.";
+            case "mock" -> "Nota fiscal em modo MOCK: o sistema gera chave simulada para testes.";
+            case "nuvemfiscal" -> "Nota fiscal via Nuvem Fiscal: configure token e dados fiscais do prestador.";
             case "none" ->
-                    "NFC-e pendente de integracao real com SEFAZ/certificado. O fechamento fica em PENDENTE_INTEGRACAO.";
+                    "Nota fiscal pendente de integracao real com SEFAZ/certificado. O fechamento fica em PENDENTE_INTEGRACAO.";
             default ->
-                    "NFC-e com provedor customizado configurado; valide emissao e credenciais no ambiente.";
+                    "Nota fiscal com provedor customizado configurado; valide emissao e credenciais no ambiente.";
         };
+    }
+
+    private void emitirNfceNuvemFiscal(CaixaFechamento fechamento) throws IOException, InterruptedException {
+        String token = sanitize(nfceNuvemFiscalToken);
+        String prestadorCpfCnpj = onlyDigits(nfceNuvemFiscalPrestadorCpfCnpj);
+
+        if (token == null) {
+            throw new IllegalStateException("Token da Nuvem Fiscal nao configurado.");
+        }
+        if (prestadorCpfCnpj == null) {
+            throw new IllegalStateException("CPF/CNPJ do prestador nao configurado para emissao da nota.");
+        }
+
+        String url = sanitizeUrl(nfceNuvemFiscalBaseUrl) + "/nfse";
+        String referencia = "fechamento-" + fechamento.getId();
+
+        Map<String, Object> payload = buildNuvemFiscalPayload(fechamento, referencia, prestadorCpfCnpj);
+        String payloadJson = objectMapper.writeValueAsString(payload);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(30))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(payloadJson))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IllegalStateException(
+                    "Nuvem Fiscal retornou " + response.statusCode() + ": " + limitText(response.body(), 220)
+            );
+        }
+
+        JsonNode root = parseJson(response.body());
+        String status = lower(extractText(root,
+                "/status",
+                "/situacao",
+                "/data/status",
+                "/nfse/status",
+                "/nfse/situacao"
+        ));
+        String chave = extractText(root,
+                "/chave",
+                "/chave_nfse",
+                "/nfse/chave",
+                "/numero",
+                "/nfse/numero",
+                "/id",
+                "/data/id",
+                "/nfse/id"
+        );
+
+        if (status.contains("autoriz") || status.contains("emitid") || status.contains("conclu")) {
+            fechamento.setNfceStatus(CaixaFechamentoNfceStatus.EMITIDA);
+            fechamento.setNfceChave(normalizeNfceKey(chave, referencia));
+            return;
+        }
+
+        fechamento.setNfceStatus(CaixaFechamentoNfceStatus.PENDENTE_INTEGRACAO);
+        fechamento.setNfceChave(normalizeNfceKey(chave, referencia));
+    }
+
+    private Map<String, Object> buildNuvemFiscalPayload(
+            CaixaFechamento fechamento,
+            String referencia,
+            String prestadorCpfCnpj
+    ) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.of("-03:00"));
+
+        BigDecimal valorServicos = safePositiveAmount(fechamento.getTotalEntradas());
+        BigDecimal valorDeducoes = safePositiveAmount(fechamento.getTotalSaidas());
+
+        Map<String, Object> prestador = new LinkedHashMap<>();
+        prestador.put("cpf_cnpj", prestadorCpfCnpj);
+
+        Map<String, Object> servico = new LinkedHashMap<>();
+        servico.put("discriminacao", buildDescricaoNfse(fechamento));
+        servico.put("valor_servicos", valorServicos);
+        servico.put("valor_deducoes", valorDeducoes);
+        servico.put("iss_retido", false);
+
+        String codigoServico = sanitize(nfceNuvemFiscalCodigoServico);
+        if (codigoServico != null) {
+            servico.put("codigo_servico_municipio", codigoServico);
+        }
+
+        String itemListaServico = sanitize(nfceNuvemFiscalItemListaServico);
+        if (itemListaServico != null) {
+            servico.put("item_lista_servico", itemListaServico);
+        }
+
+        Map<String, Object> tomador = new LinkedHashMap<>();
+        tomador.put("nome_razao_social", "Consumidor Final");
+        tomador.put("cpf_cnpj", "00000000000");
+
+        Map<String, Object> rps = new LinkedHashMap<>();
+        rps.put("referencia", referencia);
+        rps.put("data_emissao", now.toString());
+        rps.put("competencia", now.toLocalDate().toString());
+        rps.put("prestador", prestador);
+        rps.put("tomador", tomador);
+        rps.put("servico", servico);
+
+        String municipioCodigo = sanitize(nfceNuvemFiscalMunicipioCodigo);
+        if (municipioCodigo != null) {
+            rps.put("codigo_municipio", municipioCodigo);
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("ambiente", sanitize(nfceNuvemFiscalAmbiente) != null ? sanitize(nfceNuvemFiscalAmbiente) : "homologacao");
+        payload.put("referencia", referencia);
+        payload.put("rps", rps);
+        return payload;
+    }
+
+    private BigDecimal safePositiveAmount(BigDecimal value) {
+        if (value == null) return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        if (value.compareTo(BigDecimal.ZERO) < 0) return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String buildDescricaoNfse(CaixaFechamento fechamento) {
+        String periodo = fechamento.getPeriodo() != null ? fechamento.getPeriodo().name() : "PERIODO";
+        String base = "Servicos de barbearia - fechamento " + periodo + " #" + fechamento.getId();
+        String observacao = sanitize(fechamento.getObservacao());
+        if (observacao == null) return base;
+        return limitText(base + " - " + observacao, 350);
+    }
+
+    private JsonNode parseJson(String text) throws JsonProcessingException {
+        if (text == null || text.isBlank()) {
+            return objectMapper.createObjectNode();
+        }
+        return objectMapper.readTree(text);
+    }
+
+    private String extractText(JsonNode root, String... pointers) {
+        if (root == null || pointers == null) return null;
+
+        for (String pointer : pointers) {
+            if (pointer == null || pointer.isBlank()) continue;
+            JsonNode node = root.at(pointer);
+            if (node != null && !node.isMissingNode() && !node.isNull()) {
+                String value = node.asText(null);
+                if (value != null && !value.isBlank()) return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private String normalizeNfceKey(String value, String referenciaFallback) {
+        String key = sanitize(value);
+        if (key == null) key = referenciaFallback;
+        return limitText(key, 64);
+    }
+
+    private String sanitizeUrl(String value) {
+        String normalized = sanitize(value);
+        if (normalized == null) return "https://api.nuvemfiscal.com.br";
+        if (normalized.endsWith("/")) return normalized.substring(0, normalized.length() - 1);
+        return normalized;
+    }
+
+    private String sanitize(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private String onlyDigits(String value) {
+        String normalized = sanitize(value);
+        if (normalized == null) return null;
+        String digits = normalized.replaceAll("\\D", "");
+        return digits.isBlank() ? null : digits;
+    }
+
+    private String lower(String value) {
+        String normalized = sanitize(value);
+        if (normalized == null) return "";
+        return normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private String limitText(String value, int maxLen) {
+        if (value == null) return null;
+        if (value.length() <= maxLen) return value;
+        return value.substring(0, maxLen);
     }
 
     private String generateMockNfceKey(Long fechamentoId) {
