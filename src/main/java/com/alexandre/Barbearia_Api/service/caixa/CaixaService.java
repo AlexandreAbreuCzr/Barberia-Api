@@ -20,6 +20,7 @@ import com.alexandre.Barbearia_Api.repository.CaixaFechamentoRepository;
 import com.alexandre.Barbearia_Api.repository.CaixaRepository;
 import com.alexandre.Barbearia_Api.repository.ComissaoRepository;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,9 +30,11 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -43,17 +46,20 @@ public class CaixaService {
     private final CaixaFechamentoRepository caixaFechamentoRepository;
     private final UsuarioRepository usuarioRepository;
     private final ComissaoRepository comissaoRepository;
+    private final String nfceProvider;
 
     public CaixaService(
             CaixaRepository caixaRepository,
             CaixaFechamentoRepository caixaFechamentoRepository,
             UsuarioRepository usuarioRepository,
-            ComissaoRepository comissaoRepository
+            ComissaoRepository comissaoRepository,
+            @Value("${app.nfce.provider:mock}") String nfceProvider
     ) {
         this.caixaRepository = caixaRepository;
         this.caixaFechamentoRepository = caixaFechamentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.comissaoRepository = comissaoRepository;
+        this.nfceProvider = nfceProvider;
     }
 
     public Caixa createEntradaAgendamento(Agendamento agendamento) {
@@ -116,7 +122,7 @@ public class CaixaService {
                 periodo,
                 range.referencia(),
                 resumo,
-                "NFC-e exige integracao com SEFAZ e certificado digital; por enquanto o sistema salva status pendente."
+                buildNfceInfo()
         );
     }
 
@@ -151,6 +157,9 @@ public class CaixaService {
         fechamento.setFechadoPor(getUsuarioAutenticado());
 
         CaixaFechamento saved = caixaFechamentoRepository.save(fechamento);
+        if (solicitarNfce) {
+            saved = emitirNfceInterno(saved);
+        }
         return toFechamentoResponse(saved);
     }
 
@@ -165,6 +174,14 @@ public class CaixaService {
                 .filter(item -> fim == null || !item.getDataInicio().toLocalDate().isAfter(fim))
                 .map(this::toFechamentoResponse)
                 .toList();
+    }
+
+    public CaixaFechamentoResponseDTO emitirNfce(Long fechamentoId) {
+        CaixaFechamento fechamento = caixaFechamentoRepository.findById(fechamentoId)
+                .orElseThrow(() -> new IllegalArgumentException("Fechamento nao encontrado."));
+
+        CaixaFechamento atualizado = emitirNfceInterno(fechamento);
+        return toFechamentoResponse(atualizado);
     }
 
     private CaixaResponseDTO toResponse(Caixa caixa) {
@@ -362,6 +379,62 @@ public class CaixaService {
                 fechamento.getFechadoPor() != null ? fechamento.getFechadoPor().getUsername() : null,
                 fechamento.getDataDeCriacao()
         );
+    }
+
+    private CaixaFechamento emitirNfceInterno(CaixaFechamento fechamento) {
+        if (!Boolean.TRUE.equals(fechamento.getSolicitarNfce())) {
+            throw new IllegalArgumentException("Esse fechamento nao foi marcado para emissao de NFC-e.");
+        }
+
+        if (fechamento.getNfceStatus() == CaixaFechamentoNfceStatus.EMITIDA
+                && fechamento.getNfceChave() != null
+                && !fechamento.getNfceChave().isBlank()) {
+            return fechamento;
+        }
+
+        String provider = providerName();
+
+        try {
+            if ("mock".equals(provider)) {
+                fechamento.setNfceStatus(CaixaFechamentoNfceStatus.EMITIDA);
+                fechamento.setNfceChave(generateMockNfceKey(fechamento.getId()));
+            } else {
+                fechamento.setNfceStatus(CaixaFechamentoNfceStatus.PENDENTE_INTEGRACAO);
+                if (fechamento.getNfceChave() != null && fechamento.getNfceChave().startsWith("MOCK-")) {
+                    fechamento.setNfceChave(null);
+                }
+            }
+        } catch (Exception exception) {
+            fechamento.setNfceStatus(CaixaFechamentoNfceStatus.FALHA);
+            caixaFechamentoRepository.save(fechamento);
+            throw new IllegalStateException("Falha ao emitir NFC-e.");
+        }
+
+        return caixaFechamentoRepository.save(fechamento);
+    }
+
+    private String buildNfceInfo() {
+        return switch (providerName()) {
+            case "mock" -> "NFC-e em modo MOCK: o sistema gera chave simulada para testes.";
+            case "none" ->
+                    "NFC-e pendente de integracao real com SEFAZ/certificado. O fechamento fica em PENDENTE_INTEGRACAO.";
+            default ->
+                    "NFC-e com provedor customizado configurado; valide emissao e credenciais no ambiente.";
+        };
+    }
+
+    private String generateMockNfceKey(Long fechamentoId) {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        long id = fechamentoId != null ? fechamentoId : 0L;
+        String suffix = String.format("%06d", Math.floorMod(id, 1_000_000));
+        String hash = Integer.toHexString((timestamp + "-" + id + "-" + System.nanoTime()).hashCode())
+                .toUpperCase(Locale.ROOT);
+        return "MOCK-" + timestamp + "-" + suffix + "-" + hash;
+    }
+
+    private String providerName() {
+        if (nfceProvider == null || nfceProvider.isBlank()) return "none";
+        return nfceProvider.trim().toLowerCase(Locale.ROOT);
     }
 
     private record PeriodRange(LocalDateTime dataInicio, LocalDateTime dataFim, LocalDate referencia) {}

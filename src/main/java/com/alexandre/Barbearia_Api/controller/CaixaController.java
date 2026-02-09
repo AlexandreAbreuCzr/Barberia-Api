@@ -65,4 +65,9 @@ public class CaixaController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(caixaService.fechar(dto));
     }
+
+    @PostMapping("/fechamento/{id}/nfce")
+    public ResponseEntity<CaixaFechamentoResponseDTO> emitirNfce(@PathVariable Long id) {
+        return ResponseEntity.ok(caixaService.emitirNfce(id));
+    }
 }
