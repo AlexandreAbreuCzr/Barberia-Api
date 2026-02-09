@@ -17,6 +17,8 @@ public class AgendamentoSpecification {
             String barbeiroUsername,
             Long servicoId,
             LocalDate data,
+            LocalDate dataInicio,
+            LocalDate dataFim,
             LocalTime hora,
             AgendamentoStatus status,
             Boolean semBarbeiro
@@ -60,6 +62,18 @@ public class AgendamentoSpecification {
             if (data != null) {
                 predicates.add(
                         cb.equal(root.get("data"), data)
+                );
+            }
+
+            if (dataInicio != null) {
+                predicates.add(
+                        cb.greaterThanOrEqualTo(root.get("data"), dataInicio)
+                );
+            }
+
+            if (dataFim != null) {
+                predicates.add(
+                        cb.lessThanOrEqualTo(root.get("data"), dataFim)
                 );
             }
 

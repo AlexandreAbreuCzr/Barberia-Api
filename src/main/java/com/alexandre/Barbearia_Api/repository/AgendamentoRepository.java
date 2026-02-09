@@ -2,7 +2,6 @@ package com.alexandre.Barbearia_Api.repository;
 
 import com.alexandre.Barbearia_Api.model.Agendamento;
 import com.alexandre.Barbearia_Api.model.AgendamentoStatus;
-import com.alexandre.Barbearia_Api.model.Servico;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -12,10 +11,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.UUID;
 
 @Repository
 public interface AgendamentoRepository extends JpaRepository<Agendamento, Long>, JpaSpecificationExecutor<Agendamento>{
@@ -24,6 +21,11 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long>,
     List<Agendamento> findByServicoId(Long servicoId);
     List<Agendamento> findByDataAndHora(LocalDate data, LocalTime hora);
     List<Agendamento> findByBarbeiroAndData(Usuario barbeiro, LocalDate data);
+    List<Agendamento> findByBarbeiro_UsernameAndDataBetweenOrderByDataAscHoraAsc(
+            String barbeiroUsername,
+            LocalDate inicio,
+            LocalDate fim
+    );
     List<Agendamento> findByData(LocalDate data);
     List<Agendamento> findByAgendamentoStatus(AgendamentoStatus agendamentoStatus);
     @Modifying

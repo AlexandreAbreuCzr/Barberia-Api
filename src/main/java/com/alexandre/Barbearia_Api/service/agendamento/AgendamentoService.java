@@ -2,35 +2,42 @@ package com.alexandre.Barbearia_Api.service.agendamento;
 
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoCreateDTO;
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoResponseDTO;
+import com.alexandre.Barbearia_Api.dto.agendamento.disponibilidade.AgendamentoDisponibilidadeDiaDTO;
+import com.alexandre.Barbearia_Api.dto.agendamento.disponibilidade.AgendamentoDisponibilidadeResponseDTO;
 import com.alexandre.Barbearia_Api.dto.agendamento.mapper.AgendamentoMapper;
 import com.alexandre.Barbearia_Api.dto.agendamento.update.AgendamentoUpdateDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.UsuarioResponseDTO;
 import com.alexandre.Barbearia_Api.infra.exceptions.agendamento.*;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNaoBarbeiroException;
+import com.alexandre.Barbearia_Api.infra.exceptions.servico.ServicoDesativadoException;
 import com.alexandre.Barbearia_Api.infra.exceptions.servico.ServicoNotFoundException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
 import com.alexandre.Barbearia_Api.model.*;
 import com.alexandre.Barbearia_Api.repository.AgendamentoRepository;
+import com.alexandre.Barbearia_Api.repository.IndisponibilidadeRepository;
 import com.alexandre.Barbearia_Api.repository.ServicoRepository;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
 import com.alexandre.Barbearia_Api.service.caixa.CaixaService;
 import com.alexandre.Barbearia_Api.service.comissao.ComissaoService;
 import com.alexandre.Barbearia_Api.service.usuario.UsuarioService;
 import com.alexandre.Barbearia_Api.specificifications.AgendamentoSpecification;
+import com.alexandre.Barbearia_Api.specificifications.IndisponibilidadeSpecification;
 import jakarta.transaction.Transactional;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AgendamentoService {
 
     private final UsuarioService usuarioService;
     private final AgendamentoRepository agendamentoRepository;
+    private final IndisponibilidadeRepository indisponibilidadeRepository;
     private final UsuarioRepository usuarioRepository;
     private final ServicoRepository servicoRepository;
     private final AgendamentoValidator validator;
@@ -43,6 +50,7 @@ public class AgendamentoService {
     public AgendamentoService(
             UsuarioService usuarioService,
             AgendamentoRepository agendamentoRepository,
+            IndisponibilidadeRepository indisponibilidadeRepository,
             UsuarioRepository usuarioRepository,
             ServicoRepository servicoRepository,
             AgendamentoValidator validator,
@@ -52,6 +60,7 @@ public class AgendamentoService {
     ) {
         this.usuarioService = usuarioService;
         this.agendamentoRepository = agendamentoRepository;
+        this.indisponibilidadeRepository = indisponibilidadeRepository;
         this.usuarioRepository = usuarioRepository;
         this.servicoRepository = servicoRepository;
         this.validator = validator;
@@ -254,6 +263,8 @@ public class AgendamentoService {
             String barbeiroUserName,
             Long servicoId,
             LocalDate data,
+            LocalDate dataInicio,
+            LocalDate dataFim,
             LocalTime hora,
             AgendamentoStatus status,
             Boolean semBarbeiro
@@ -284,11 +295,74 @@ public class AgendamentoService {
                         barbeiroFiltro,
                         servicoId,
                         data,
+                        dataInicio,
+                        dataFim,
                         hora,
                         status,
                         semBarbeiroFiltro
                 )
         ).stream().map(AgendamentoMapper::toResponse).toList();
+    }
+
+    public AgendamentoDisponibilidadeResponseDTO getDisponibilidade(
+            String barbeiroUserName,
+            Long servicoId,
+            LocalDate inicio,
+            LocalDate fim
+    ) {
+        validarPeriodoDisponibilidade(inicio, fim);
+
+        Usuario barbeiro = getUsuarioByUsername(barbeiroUserName);
+        validator.validarBarbeiro(barbeiro);
+
+        Servico servico = getServicoById(servicoId);
+        if (!servico.isStatus()) {
+            throw new ServicoDesativadoException();
+        }
+
+        int duracaoEmMinutos = getDuracaoMinutos(servico);
+        LocalDateTime antecedenciaMinima = LocalDateTime.now().plusMinutes(15);
+
+        List<Agendamento> conflitos = agendamentoRepository
+                .findByBarbeiro_UsernameAndDataBetweenOrderByDataAscHoraAsc(
+                        barbeiroUserName,
+                        inicio,
+                        fim
+                )
+                .stream()
+                .filter(agendamento ->
+                        agendamento.getAgendamentoStatus() == AgendamentoStatus.REQUISITADO
+                                || agendamento.getAgendamentoStatus() == AgendamentoStatus.AGENDADO
+                )
+                .collect(Collectors.toList());
+
+        LocalDateTime inicioPeriodo = inicio.atStartOfDay();
+        LocalDateTime fimPeriodo = fim.plusDays(1).atStartOfDay().minusNanos(1);
+        Specification<Indisponibilidade> indisponibilidadeSpec = Specification.<Indisponibilidade>unrestricted()
+                .and(IndisponibilidadeSpecification.barbeiroUsername(barbeiroUserName))
+                .and(IndisponibilidadeSpecification.overlap(inicioPeriodo, fimPeriodo));
+        List<Indisponibilidade> indisponibilidades = indisponibilidadeRepository.findAll(indisponibilidadeSpec);
+
+        List<AgendamentoDisponibilidadeDiaDTO> dias = new ArrayList<>();
+        for (LocalDate data = inicio; !data.isAfter(fim); data = data.plusDays(1)) {
+            List<LocalTime> horarios = calcularHorariosDisponiveis(
+                    data,
+                    duracaoEmMinutos,
+                    conflitos,
+                    indisponibilidades,
+                    antecedenciaMinima
+            );
+            dias.add(new AgendamentoDisponibilidadeDiaDTO(data, !horarios.isEmpty(), horarios));
+        }
+
+        return new AgendamentoDisponibilidadeResponseDTO(
+                barbeiroUserName,
+                servicoId,
+                duracaoEmMinutos,
+                inicio,
+                fim,
+                dias
+        );
     }
 
     public List<AgendamentoResponseDTO> getAutenticado(){
@@ -333,6 +407,132 @@ public class AgendamentoService {
     private boolean isBarbeiroDoAgendamento(Agendamento agendamento, String username) {
         return agendamento.getBarbeiro() != null
                 && agendamento.getBarbeiro().getUsername().equalsIgnoreCase(username);
+    }
+
+    private void validarPeriodoDisponibilidade(LocalDate inicio, LocalDate fim) {
+        if (inicio == null || fim == null) {
+            throw new IllegalArgumentException("Informe inicio e fim para consultar disponibilidade.");
+        }
+        if (fim.isBefore(inicio)) {
+            throw new IllegalArgumentException("A data fim deve ser igual ou posterior a data inicio.");
+        }
+
+        long dias = Duration.between(
+                inicio.atStartOfDay(),
+                fim.plusDays(1).atStartOfDay()
+        ).toDays();
+        if (dias > 62) {
+            throw new IllegalArgumentException("A consulta de disponibilidade permite no maximo 62 dias.");
+        }
+    }
+
+    private List<LocalTime> calcularHorariosDisponiveis(
+            LocalDate data,
+            int duracaoEmMinutos,
+            List<Agendamento> conflitos,
+            List<Indisponibilidade> indisponibilidades,
+            LocalDateTime antecedenciaMinima
+    ) {
+        if (data.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            return List.of();
+        }
+
+        List<LocalTime> horarios = new ArrayList<>();
+        adicionarHorariosNoTurno(
+                horarios,
+                data,
+                LocalTime.of(9, 0),
+                LocalTime.of(12, 0),
+                duracaoEmMinutos,
+                conflitos,
+                indisponibilidades,
+                antecedenciaMinima
+        );
+        adicionarHorariosNoTurno(
+                horarios,
+                data,
+                LocalTime.of(13, 0),
+                LocalTime.of(20, 0),
+                duracaoEmMinutos,
+                conflitos,
+                indisponibilidades,
+                antecedenciaMinima
+        );
+        return horarios;
+    }
+
+    private void adicionarHorariosNoTurno(
+            List<LocalTime> horarios,
+            LocalDate data,
+            LocalTime inicioTurno,
+            LocalTime fimTurno,
+            int duracaoEmMinutos,
+            List<Agendamento> conflitos,
+            List<Indisponibilidade> indisponibilidades,
+            LocalDateTime antecedenciaMinima
+    ) {
+        LocalTime inicio = inicioTurno;
+        while (!inicio.plusMinutes(duracaoEmMinutos).isAfter(fimTurno)) {
+            LocalDateTime inicioDataHora = LocalDateTime.of(data, inicio);
+            LocalTime fim = inicio.plusMinutes(duracaoEmMinutos);
+
+            boolean horarioValido = !inicioDataHora.isBefore(antecedenciaMinima)
+                    && !possuiConflitoComAgendamento(data, inicio, fim, conflitos)
+                    && !possuiConflitoComIndisponibilidade(data, inicio, fim, indisponibilidades);
+
+            if (horarioValido) {
+                horarios.add(inicio);
+            }
+
+            inicio = inicio.plusMinutes(15);
+        }
+    }
+
+    private boolean possuiConflitoComAgendamento(
+            LocalDate data,
+            LocalTime inicio,
+            LocalTime fim,
+            List<Agendamento> conflitos
+    ) {
+        for (Agendamento agendamento : conflitos) {
+            if (!data.equals(agendamento.getData())) {
+                continue;
+            }
+
+            LocalTime inicioExistente = agendamento.getHora();
+            LocalTime fimExistente = inicioExistente.plusMinutes(getDuracaoMinutos(agendamento.getServico()));
+            boolean conflito = inicio.isBefore(fimExistente) && fim.isAfter(inicioExistente);
+            if (conflito) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean possuiConflitoComIndisponibilidade(
+            LocalDate data,
+            LocalTime inicio,
+            LocalTime fim,
+            List<Indisponibilidade> indisponibilidades
+    ) {
+        LocalDateTime inicioDataHora = LocalDateTime.of(data, inicio);
+        LocalDateTime fimDataHora = LocalDateTime.of(data, fim);
+
+        for (Indisponibilidade indisponibilidade : indisponibilidades) {
+            boolean conflito = !indisponibilidade.getInicio().isAfter(fimDataHora)
+                    && !indisponibilidade.getFim().isBefore(inicioDataHora);
+            if (conflito) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int getDuracaoMinutos(Servico servico) {
+        if (servico == null || servico.getDuracaoMediaEmMinutos() == null || servico.getDuracaoMediaEmMinutos() <= 0) {
+            return 30;
+        }
+        return servico.getDuracaoMediaEmMinutos();
     }
 
 }

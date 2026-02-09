@@ -2,11 +2,10 @@ package com.alexandre.Barbearia_Api.controller;
 
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoCreateDTO;
 import com.alexandre.Barbearia_Api.dto.agendamento.AgendamentoResponseDTO;
-import com.alexandre.Barbearia_Api.dto.agendamento.mapper.AgendamentoMapper;
+import com.alexandre.Barbearia_Api.dto.agendamento.disponibilidade.AgendamentoDisponibilidadeResponseDTO;
 import com.alexandre.Barbearia_Api.dto.agendamento.update.AgendamentoUpdateDTO;
 import com.alexandre.Barbearia_Api.model.AgendamentoStatus;
 import com.alexandre.Barbearia_Api.service.agendamento.AgendamentoService;
-import com.alexandre.Barbearia_Api.specificifications.AgendamentoSpecification;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/agendamento")
@@ -93,6 +91,8 @@ public class AgendamentoController {
             @RequestParam(required = false) String barbeiroUserName,
             @RequestParam(required = false) Long servicoId,
             @RequestParam(required = false) LocalDate data,
+            @RequestParam(required = false) LocalDate dataInicio,
+            @RequestParam(required = false) LocalDate dataFim,
             @RequestParam(required = false) LocalTime hora,
             @RequestParam(required = false) AgendamentoStatus status,
             @RequestParam(required = false) Boolean semBarbeiro
@@ -103,10 +103,24 @@ public class AgendamentoController {
                         barbeiroUserName,
                         servicoId,
                         data,
+                        dataInicio,
+                        dataFim,
                         hora,
                         status,
                         semBarbeiro
                 )
+        );
+    }
+
+    @GetMapping("/disponibilidade")
+    public ResponseEntity<AgendamentoDisponibilidadeResponseDTO> getDisponibilidade(
+            @RequestParam String barbeiroUserName,
+            @RequestParam Long servicoId,
+            @RequestParam LocalDate inicio,
+            @RequestParam LocalDate fim
+    ) {
+        return ResponseEntity.ok(
+                agendamentoService.getDisponibilidade(barbeiroUserName, servicoId, inicio, fim)
         );
     }
 
