@@ -401,8 +401,15 @@ public class AgendamentoService {
         return false;
     }
 
+    private boolean hasPermission(UsuarioResponseDTO usuario, AcessoPermissao permissao) {
+        if (usuario == null || permissao == null || usuario.permissoes() == null) return false;
+        return usuario.permissoes().stream()
+                .anyMatch(item -> permissao.name().equalsIgnoreCase(item));
+    }
+
     private boolean canManageAgenda(UsuarioResponseDTO usuario) {
-        return hasRole(usuario, UserRole.ADMIN, UserRole.GERENTE, UserRole.RECEPCIONISTA);
+        return hasRole(usuario, UserRole.ADMIN, UserRole.GERENTE, UserRole.RECEPCIONISTA)
+                && hasPermission(usuario, AcessoPermissao.AGENDA_GERIR);
     }
 
     private boolean canAcceptAppointment(UsuarioResponseDTO usuario) {

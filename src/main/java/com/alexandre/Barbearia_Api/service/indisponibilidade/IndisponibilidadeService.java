@@ -8,6 +8,7 @@ import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.Indisponib
 import com.alexandre.Barbearia_Api.infra.exceptions.indisponibilidade.IndisponibilidadeNotFoundInicioFimException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNaoBarbeiroException;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
+import com.alexandre.Barbearia_Api.model.AcessoPermissao;
 import com.alexandre.Barbearia_Api.model.Indisponibilidade;
 import com.alexandre.Barbearia_Api.model.TipoIndisponibilidade;
 import com.alexandre.Barbearia_Api.model.UserRole;
@@ -51,14 +52,13 @@ public class IndisponibilidadeService {
         validarIntervalo(dto.inicio(), dto.fim());
 
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
-        UserRole role = UserRole.from(usuario.role());
         String alvoUsername = dto.barbeiroUsername();
 
-        if (isGestaoAgendaRole(role)) {
+        if (isGestaoAgendaRole(usuario)) {
             if (alvoUsername == null || alvoUsername.isBlank()) {
                 throw new UsuarioNaoBarbeiroException("Informe o barbeiro responsável.");
             }
-        } else if (role == UserRole.BARBEIRO) {
+        } else if (UserRole.from(usuario.role()) == UserRole.BARBEIRO) {
             alvoUsername = usuario.username();
         } else {
             throw new UsuarioNaoBarbeiroException();
@@ -86,7 +86,7 @@ public class IndisponibilidadeService {
             TipoIndisponibilidade tipo
     ) {
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
-        if (!isGestaoAgendaRole(UserRole.from(usuario.role()))) {
+        if (!isGestaoAgendaRole(usuario)) {
             barbeiroUsername = usuario.username();
         }
         Specification<Indisponibilidade> spec = Specification.unrestricted();
@@ -113,7 +113,7 @@ public class IndisponibilidadeService {
         UsuarioResponseDTO usuario = usuarioService.getUsuarioAutenticado();
         Indisponibilidade indisponibilidade = getById(id);
 
-        if (!isGestaoAgendaRole(UserRole.from(usuario.role()))) {
+        if (!isGestaoAgendaRole(usuario)) {
             String barbeiroUsername = indisponibilidade.getBarbeiro() != null
                     ? indisponibilidade.getBarbeiro().getUsername()
                     : null;
@@ -148,7 +148,15 @@ public class IndisponibilidadeService {
         }
     }
 
-    private boolean isGestaoAgendaRole(UserRole role) {
-        return role == UserRole.ADMIN || role == UserRole.GERENTE;
+    private boolean hasPermission(UsuarioResponseDTO usuario, AcessoPermissao permissao) {
+        if (usuario == null || permissao == null || usuario.permissoes() == null) return false;
+        return usuario.permissoes().stream()
+                .anyMatch(item -> permissao.name().equalsIgnoreCase(item));
+    }
+
+    private boolean isGestaoAgendaRole(UsuarioResponseDTO usuario) {
+        UserRole role = UserRole.from(usuario != null ? usuario.role() : null);
+        return (role == UserRole.ADMIN || role == UserRole.GERENTE)
+                && hasPermission(usuario, AcessoPermissao.INDISPONIBILIDADE_GERIR);
     }
 }

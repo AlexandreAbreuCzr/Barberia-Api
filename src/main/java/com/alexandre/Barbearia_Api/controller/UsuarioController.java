@@ -3,6 +3,7 @@ package com.alexandre.Barbearia_Api.controller;
 import com.alexandre.Barbearia_Api.dto.usuario.UsuarioResponseDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioMeUpdateDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioNameDTO;
+import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioPermissoesDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioRoleDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioStatusDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioTelefoneDTO;
@@ -80,6 +81,15 @@ public class UsuarioController {
             @Valid @RequestBody UsuarioRoleDTO dto
     ) {
         usuarioService.updateRole(username, dto);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/admin/{username}/permissoes")
+    public ResponseEntity<Void> updatePermissoes(
+            @PathVariable String username,
+            @Valid @RequestBody UsuarioPermissoesDTO dto
+    ) {
+        usuarioService.updatePermissoes(username, dto);
         return ResponseEntity.ok().build();
     }
 

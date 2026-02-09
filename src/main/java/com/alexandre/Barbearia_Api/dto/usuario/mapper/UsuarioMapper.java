@@ -14,6 +14,7 @@ public class UsuarioMapper {
                 usuario.getEmail(),
                 usuario.getTelefone(),
                 usuario.getRole().name(),
+                usuario.getPermissoesEfetivas().stream().map(Enum::name).sorted().toList(),
                 usuario.getDataDeCriacao(),
                 usuario.getDataDeModificacao(),
                 usuario.isStatus()

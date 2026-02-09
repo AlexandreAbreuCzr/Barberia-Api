@@ -13,7 +13,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -46,6 +48,9 @@ public class Usuario implements UserDetails {
     private UserRole role;
 
     @Column(nullable = false)
+    private String permissoes = "";
+
+    @Column(nullable = false)
     private boolean status = true;
 
     @CreationTimestamp
@@ -68,7 +73,14 @@ public class Usuario implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(() -> "ROLE_" + role.name());
+        Set<GrantedAuthority> authorities = new LinkedHashSet<>();
+        authorities.add(() -> "ROLE_" + role.name());
+
+        for (AcessoPermissao permissao : getPermissoesEfetivas()) {
+            authorities.add(permissao::authority);
+        }
+
+        return authorities;
     }
 
     @Override
@@ -88,5 +100,17 @@ public class Usuario implements UserDetails {
     @Override
     public boolean isEnabled() {
         return Boolean.TRUE.equals(this.status);
+    }
+
+    public Set<AcessoPermissao> getPermissoesEfetivas() {
+        Set<AcessoPermissao> custom = AcessoPermissao.parse(permissoes);
+        if (custom.isEmpty()) {
+            return AcessoPermissao.defaultsForRole(role);
+        }
+        return custom;
+    }
+
+    public void setPermissoesEfetivas(Set<AcessoPermissao> permissaoSet) {
+        this.permissoes = AcessoPermissao.encode(permissaoSet);
     }
 }

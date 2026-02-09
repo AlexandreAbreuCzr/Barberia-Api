@@ -8,14 +8,19 @@ import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioStatusDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioTelefoneDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioMeUpdateDTO;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
+import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioPermissoesDTO;
+import com.alexandre.Barbearia_Api.model.AcessoPermissao;
 import com.alexandre.Barbearia_Api.model.UserRole;
 import com.alexandre.Barbearia_Api.model.Usuario;
 import com.alexandre.Barbearia_Api.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class UsuarioService {
@@ -28,6 +33,8 @@ public class UsuarioService {
     }
 
     public void updateRole(String username, UsuarioRoleDTO dto){
+        requirePermission(AcessoPermissao.USUARIOS_ALTERAR_ROLE);
+
         Usuario usuario = getByUsername(username);
 
         if (usuario.getRole() == UserRole.ADMIN) {
@@ -35,11 +42,14 @@ public class UsuarioService {
         }
 
         usuario.setRole(dto.role());
+        usuario.setPermissoesEfetivas(Set.of());
         usuarioRepository.save(usuario);
     }
 
 
     public void updateName(String username, UsuarioNameDTO dto){
+        requirePermission(AcessoPermissao.USUARIOS_GERIR);
+
         Usuario usuario = getByUsername(username);
 
         if (usuario.getName().equals(dto.name())) {
@@ -50,6 +60,8 @@ public class UsuarioService {
     }
 
     public void updateTelefone(String username, UsuarioTelefoneDTO dto){
+        requirePermission(AcessoPermissao.USUARIOS_GERIR);
+
         Usuario usuario = getByUsername(username);
         usuario.setTelefone(dto.telefone());
         usuarioRepository.save(usuario);
@@ -57,16 +69,38 @@ public class UsuarioService {
 
 
     public void updateStatus(String username, UsuarioStatusDTO dto){
+        requirePermission(AcessoPermissao.USUARIOS_GERIR);
+
         Usuario usuario = getByUsername(username);
         usuario.setStatus(dto.status());
         usuarioRepository.save(usuario);
     }
 
+    public void updatePermissoes(String username, UsuarioPermissoesDTO dto) {
+        requirePermission(AcessoPermissao.USUARIOS_ALTERAR_PERMISSOES);
+
+        Usuario usuario = getByUsername(username);
+
+        if (usuario.getRole() == UserRole.ADMIN) {
+            return;
+        }
+
+        Set<AcessoPermissao> requested = dto.permissoes() == null
+                ? Set.of()
+                : new LinkedHashSet<>(dto.permissoes());
+
+        usuario.setPermissoesEfetivas(requested);
+        usuarioRepository.save(usuario);
+    }
+
     public UsuarioResponseDTO findByUserName(String username){
+        requireAnyPermission(AcessoPermissao.USUARIOS_VISUALIZAR, AcessoPermissao.USUARIOS_GERIR);
         return UsuarioMapper.toResponse(getByUsername(username));
     }
 
     public List<UsuarioResponseDTO> find(String name, Boolean status, UserRole role){
+        requireAnyPermission(AcessoPermissao.USUARIOS_VISUALIZAR, AcessoPermissao.USUARIOS_GERIR);
+
         if (name != null && status != null && role != null)
             return UsuarioMapper.toResponses(usuarioRepository.findByNameContainingIgnoreCaseAndStatusAndRole(name, status, role));
 
@@ -129,5 +163,22 @@ public class UsuarioService {
     private Usuario getByUsername(String username){
         return usuarioRepository.findByUsername(username)
                 .orElseThrow(UsuarioNotFoundException::new);
+    }
+
+    private void requireAnyPermission(AcessoPermissao... permissions) {
+        Usuario autenticado = (Usuario) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        Set<AcessoPermissao> granted = autenticado.getPermissoesEfetivas();
+        for (AcessoPermissao permission : permissions) {
+            if (granted.contains(permission)) return;
+        }
+        throw new AccessDeniedException("Voce nao possui permissao para gerenciar usuarios.");
+    }
+
+    private void requirePermission(AcessoPermissao permission) {
+        requireAnyPermission(permission);
     }
 }

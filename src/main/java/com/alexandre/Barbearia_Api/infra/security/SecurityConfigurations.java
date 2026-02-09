@@ -51,7 +51,8 @@ public class SecurityConfigurations {
                                 HttpMethod.PATCH,
                                 "/usuario/admin/*/status",
                                 "/usuario/admin/*/telefone",
-                                "/usuario/admin/*/name"
+                                "/usuario/admin/*/name",
+                                "/usuario/admin/*/permissoes"
                         ).hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.PATCH, "/usuario/admin/*/role").hasRole("ADMIN")
 
