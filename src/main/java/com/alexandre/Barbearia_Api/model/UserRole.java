@@ -2,9 +2,8 @@ package com.alexandre.Barbearia_Api.model;
 
 public enum UserRole {
     ADMIN("admin"),
-    GERENTE("gerente"),
-    RECEPCIONISTA("recepcionista"),
-    BARBEIRO("barbeiro"),
+    DONO("dono"),
+    FUNCIONARIO("funcionario"),
     USER("user");
 
     private final String role;
@@ -22,47 +21,47 @@ public enum UserRole {
     }
 
     public boolean isManager() {
-        return this == GERENTE;
+        return this == DONO;
     }
 
     public boolean isReceptionist() {
-        return this == RECEPCIONISTA;
+        return this == FUNCIONARIO;
     }
 
     public boolean isBarber() {
-        return this == BARBEIRO;
+        return this == FUNCIONARIO;
     }
 
     public boolean canAccessAdminPanel() {
-        return isAdmin() || isManager() || isReceptionist();
+        return isAdmin() || this == DONO || this == FUNCIONARIO;
     }
 
     public boolean canManageUsers() {
-        return isAdmin() || isManager();
+        return isAdmin() || this == DONO;
     }
 
     public boolean canManageUserRoles() {
-        return isAdmin();
+        return isAdmin() || this == DONO;
     }
 
     public boolean canManageServices() {
-        return isAdmin() || isManager();
+        return isAdmin() || this == DONO;
     }
 
     public boolean canManageSchedule() {
-        return isAdmin() || isManager() || isReceptionist();
+        return isAdmin() || this == DONO || this == FUNCIONARIO;
     }
 
     public boolean canManageIndisponibilidade() {
-        return isAdmin() || isManager();
+        return isAdmin() || this == DONO || this == FUNCIONARIO;
     }
 
     public boolean canManageCommissions() {
-        return isAdmin() || isManager();
+        return isAdmin() || this == DONO || this == FUNCIONARIO;
     }
 
     public boolean canManageCash() {
-        return isAdmin() || isManager();
+        return isAdmin() || this == DONO;
     }
 
     public static UserRole from(String value) {

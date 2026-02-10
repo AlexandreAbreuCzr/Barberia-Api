@@ -149,7 +149,9 @@ public class AgendamentoValidator {
     }
 
     public void validarBarbeiro(Usuario barbeiro) {
-        if (barbeiro.getRole() != UserRole.BARBEIRO && barbeiro.getRole() != UserRole.ADMIN) {
+        if (barbeiro.getRole() != UserRole.FUNCIONARIO
+                && barbeiro.getRole() != UserRole.DONO
+                && barbeiro.getRole() != UserRole.ADMIN) {
             throw new UsuarioNaoBarbeiroException();
         }
     }

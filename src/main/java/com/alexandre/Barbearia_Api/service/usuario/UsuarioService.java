@@ -1,6 +1,7 @@
 package com.alexandre.Barbearia_Api.service.usuario;
 
 import com.alexandre.Barbearia_Api.dto.usuario.UsuarioResponseDTO;
+import com.alexandre.Barbearia_Api.dto.usuario.create.FuncionarioCreateDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.mapper.UsuarioMapper;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioNameDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioRoleDTO;
@@ -8,6 +9,7 @@ import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioStatusDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioTelefoneDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioMeUpdateDTO;
 import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioNotFoundException;
+import com.alexandre.Barbearia_Api.infra.exceptions.usuario.UsuarioJaExisteException;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioPermissoesDTO;
 import com.alexandre.Barbearia_Api.model.AcessoPermissao;
 import com.alexandre.Barbearia_Api.model.UserRole;
@@ -34,6 +36,14 @@ public class UsuarioService {
 
     public void updateRole(String username, UsuarioRoleDTO dto){
         requirePermission(AcessoPermissao.USUARIOS_ALTERAR_ROLE);
+        Usuario autenticado = getUsuarioAutenticadoEntity();
+
+        if (dto.role() == UserRole.ADMIN) {
+            throw new AccessDeniedException("Nao e permitido atribuir o cargo ADMIN.");
+        }
+        if (dto.role() == UserRole.DONO && autenticado.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Somente ADMIN pode atribuir o cargo DONO.");
+        }
 
         Usuario usuario = getByUsername(username);
 
@@ -93,6 +103,50 @@ public class UsuarioService {
         usuarioRepository.save(usuario);
     }
 
+    public void createFuncionario(FuncionarioCreateDTO dto) {
+        requirePermission(AcessoPermissao.USUARIOS_GERIR);
+
+        Usuario autenticado = getUsuarioAutenticadoEntity();
+        UserRole role = dto.role() == null ? UserRole.FUNCIONARIO : dto.role();
+
+        if (role == UserRole.ADMIN || role == UserRole.USER) {
+            throw new AccessDeniedException("Cargo invalido para cadastro de funcionario.");
+        }
+        if (role == UserRole.DONO && autenticado.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Somente ADMIN pode criar um novo DONO.");
+        }
+
+        String username = normalizeUsername(dto.username());
+        String email = normalizeEmail(dto.email());
+        String telefone = normalizeTelefone(dto.telefone());
+
+        if (usuarioRepository.existsByUsername(username)) {
+            throw new UsuarioJaExisteException("Username ja esta em uso");
+        }
+        if (usuarioRepository.existsByEmail(email)) {
+            throw new UsuarioJaExisteException("Email ja esta em uso");
+        }
+
+        Usuario usuario = new Usuario(
+                username,
+                dto.name().trim(),
+                email,
+                passwordEncoder.encode(dto.password()),
+                role
+        );
+        if (telefone != null && !telefone.isBlank()) {
+            usuario.setTelefone(telefone);
+        }
+
+        if (dto.permissoes() != null && !dto.permissoes().isEmpty()) {
+            usuario.setPermissoesEfetivas(new LinkedHashSet<>(dto.permissoes()));
+        } else {
+            usuario.setPermissoesEfetivas(Set.of());
+        }
+
+        usuarioRepository.save(usuario);
+    }
+
     public UsuarioResponseDTO findByUserName(String username){
         requireAnyPermission(AcessoPermissao.USUARIOS_VISUALIZAR, AcessoPermissao.USUARIOS_GERIR);
         return UsuarioMapper.toResponse(getByUsername(username));
@@ -121,7 +175,7 @@ public class UsuarioService {
     }
 
     public List<UsuarioResponseDTO> findBarbeirosAtivos() {
-        List<UserRole> roles = List.of(UserRole.BARBEIRO, UserRole.ADMIN);
+        List<UserRole> roles = List.of(UserRole.FUNCIONARIO, UserRole.DONO);
         return UsuarioMapper.toResponses(
                 usuarioRepository.findByStatusAndRoleIn(true, roles)
                         .stream()
@@ -131,11 +185,28 @@ public class UsuarioService {
         );
     }
 
+    public List<UsuarioResponseDTO> findFuncionarios(String name, Boolean status, UserRole role) {
+        requireAnyPermission(AcessoPermissao.USUARIOS_VISUALIZAR, AcessoPermissao.USUARIOS_GERIR);
+
+        UserRole roleFiltroTmp = role;
+        if (roleFiltroTmp != null && roleFiltroTmp != UserRole.FUNCIONARIO && roleFiltroTmp != UserRole.DONO) {
+            roleFiltroTmp = null;
+        }
+        final UserRole roleFiltro = roleFiltroTmp;
+
+        return UsuarioMapper.toResponses(
+                usuarioRepository.findAll()
+                        .stream()
+                        .filter(usuario -> usuario.getRole() == UserRole.FUNCIONARIO || usuario.getRole() == UserRole.DONO)
+                        .filter(usuario -> roleFiltro == null || usuario.getRole() == roleFiltro)
+                        .filter(usuario -> name == null || usuario.getName().toLowerCase().contains(name.toLowerCase()))
+                        .filter(usuario -> status == null || usuario.isStatus() == status)
+                        .toList()
+        );
+    }
+
     public UsuarioResponseDTO getUsuarioAutenticado(){
-        Usuario usuario = (Usuario) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
+        Usuario usuario = getUsuarioAutenticadoEntity();
         return UsuarioMapper.toResponse(usuario);
     }
 
@@ -165,11 +236,15 @@ public class UsuarioService {
                 .orElseThrow(UsuarioNotFoundException::new);
     }
 
-    private void requireAnyPermission(AcessoPermissao... permissions) {
-        Usuario autenticado = (Usuario) SecurityContextHolder
+    private Usuario getUsuarioAutenticadoEntity() {
+        return (Usuario) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
+    }
+
+    private void requireAnyPermission(AcessoPermissao... permissions) {
+        Usuario autenticado = getUsuarioAutenticadoEntity();
 
         Set<AcessoPermissao> granted = autenticado.getPermissoesEfetivas();
         for (AcessoPermissao permission : permissions) {
@@ -180,5 +255,21 @@ public class UsuarioService {
 
     private void requirePermission(AcessoPermissao permission) {
         requireAnyPermission(permission);
+    }
+
+    private String normalizeUsername(String username) {
+        if (username == null) return "";
+        return username.trim().toLowerCase();
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) return "";
+        return email.trim().toLowerCase();
+    }
+
+    private String normalizeTelefone(String telefone) {
+        if (telefone == null) return null;
+        String cleaned = telefone.replaceAll("\\D", "");
+        return cleaned.isBlank() ? null : cleaned;
     }
 }

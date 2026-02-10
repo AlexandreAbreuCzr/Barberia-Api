@@ -45,43 +45,47 @@ public class SecurityConfigurations {
                         .requestMatchers(HttpMethod.GET, "/usuario/me").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/usuario/me").authenticated()
 
+                        .requestMatchers(HttpMethod.GET, "/usuario/admin/funcionarios")
+                            .hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
+                        .requestMatchers(HttpMethod.POST, "/usuario/admin/funcionarios")
+                            .hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
                         .requestMatchers(HttpMethod.GET, "/usuario/admin/**")
-                            .hasAnyRole("ADMIN", "GERENTE", "RECEPCIONISTA")
+                            .hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
                         .requestMatchers(
                                 HttpMethod.PATCH,
                                 "/usuario/admin/*/status",
                                 "/usuario/admin/*/telefone",
                                 "/usuario/admin/*/name",
                                 "/usuario/admin/*/permissoes"
-                        ).hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.PATCH, "/usuario/admin/*/role").hasRole("ADMIN")
+                        ).hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
+                        .requestMatchers(HttpMethod.PATCH, "/usuario/admin/*/role").hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
 
                         .requestMatchers(HttpMethod.GET, "/servico/**", "/servicos/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/servico", "/servicos").hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.PATCH, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.DELETE, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/servico", "/servicos").hasAnyRole("ADMIN", "DONO")
+                        .requestMatchers(HttpMethod.PATCH, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "DONO")
+                        .requestMatchers(HttpMethod.DELETE, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "DONO")
 
                         .requestMatchers(HttpMethod.GET, "/agendamento/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/agendamento").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/agendamento/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/agendamento/**").authenticated()
 
-                        .requestMatchers(HttpMethod.POST, "/indisponibilidade").hasAnyRole("BARBEIRO", "ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/indisponibilidade").hasAnyRole("FUNCIONARIO", "DONO", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/indisponibilidade/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/indisponibilidade/**").hasAnyRole("BARBEIRO", "ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.DELETE, "/indisponibilidade/**").hasAnyRole("FUNCIONARIO", "DONO", "ADMIN")
 
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/avaliacao/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/avaliacao").permitAll()
 
-                        .requestMatchers(HttpMethod.GET, "/comissao/taxa").hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.PATCH, "/comissao/taxa").hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.GET, "/comissao/**").hasAnyRole("BARBEIRO", "ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.PATCH, "/comissao/**").hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.GET, "/caixa/**").hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.POST, "/caixa/**").hasAnyRole("ADMIN", "GERENTE")
-                        .requestMatchers(HttpMethod.GET, "/dashboard/**").hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.GET, "/comissao/taxa").hasAnyRole("ADMIN", "DONO")
+                        .requestMatchers(HttpMethod.PATCH, "/comissao/taxa").hasAnyRole("ADMIN", "DONO")
+                        .requestMatchers(HttpMethod.GET, "/comissao/**").hasAnyRole("FUNCIONARIO", "DONO", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/comissao/**").hasAnyRole("ADMIN", "DONO")
+                        .requestMatchers(HttpMethod.GET, "/caixa/**").hasAnyRole("ADMIN", "DONO")
+                        .requestMatchers(HttpMethod.POST, "/caixa/**").hasAnyRole("ADMIN", "DONO")
+                        .requestMatchers(HttpMethod.GET, "/dashboard/**").hasAnyRole("ADMIN", "DONO")
 
                         .anyRequest().authenticated()
                 )

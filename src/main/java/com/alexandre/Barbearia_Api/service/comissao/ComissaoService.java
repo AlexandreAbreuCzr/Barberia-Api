@@ -64,7 +64,7 @@ public class ComissaoService {
         String role = usuario.role();
         String filtroBarbeiro = barbeiroUsername;
 
-        if (role != null && role.equals("BARBEIRO")) {
+        if (role != null && role.equals("FUNCIONARIO")) {
             filtroBarbeiro = usuario.username();
         }
 

@@ -50,10 +50,11 @@ public enum AcessoPermissao {
 
         return switch (role) {
             case ADMIN -> all();
-            case GERENTE -> Set.of(
+            case DONO -> Set.of(
                     DASHBOARD_VISUALIZAR,
                     USUARIOS_VISUALIZAR,
                     USUARIOS_GERIR,
+                    USUARIOS_ALTERAR_ROLE,
                     USUARIOS_ALTERAR_PERMISSOES,
                     AGENDA_GERIR,
                     SERVICOS_GERIR,
@@ -61,11 +62,7 @@ public enum AcessoPermissao {
                     COMISSOES_GERIR,
                     CAIXA_GERIR
             );
-            case RECEPCIONISTA -> Set.of(
-                    USUARIOS_VISUALIZAR,
-                    AGENDA_GERIR
-            );
-            case BARBEIRO -> Set.of(AGENDA_GERIR);
+            case FUNCIONARIO -> Set.of(AGENDA_GERIR);
             case USER -> Set.of();
         };
     }

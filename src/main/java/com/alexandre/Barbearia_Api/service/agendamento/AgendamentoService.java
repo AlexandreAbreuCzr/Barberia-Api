@@ -408,16 +408,16 @@ public class AgendamentoService {
     }
 
     private boolean canManageAgenda(UsuarioResponseDTO usuario) {
-        return hasRole(usuario, UserRole.ADMIN, UserRole.GERENTE, UserRole.RECEPCIONISTA)
+        return hasRole(usuario, UserRole.ADMIN, UserRole.DONO, UserRole.FUNCIONARIO)
                 && hasPermission(usuario, AcessoPermissao.AGENDA_GERIR);
     }
 
     private boolean canAcceptAppointment(UsuarioResponseDTO usuario) {
-        return hasRole(usuario, UserRole.BARBEIRO, UserRole.ADMIN);
+        return hasRole(usuario, UserRole.FUNCIONARIO, UserRole.DONO, UserRole.ADMIN);
     }
 
     private boolean isBarbeiro(UsuarioResponseDTO usuario) {
-        return hasRole(usuario, UserRole.BARBEIRO);
+        return hasRole(usuario, UserRole.FUNCIONARIO);
     }
 
     private boolean isCliente(Agendamento agendamento, String username) {

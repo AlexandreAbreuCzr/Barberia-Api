@@ -1,6 +1,7 @@
 package com.alexandre.Barbearia_Api.controller;
 
 import com.alexandre.Barbearia_Api.dto.usuario.UsuarioResponseDTO;
+import com.alexandre.Barbearia_Api.dto.usuario.create.FuncionarioCreateDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioMeUpdateDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioNameDTO;
 import com.alexandre.Barbearia_Api.dto.usuario.update.UsuarioPermissoesDTO;
@@ -48,6 +49,21 @@ public class UsuarioController {
             @RequestParam(required = false) UserRole userRole
     ) {
         return ResponseEntity.ok(usuarioService.find(name, status, userRole));
+    }
+
+    @GetMapping("/admin/funcionarios")
+    public ResponseEntity<List<UsuarioResponseDTO>> funcionarios(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) UserRole role
+    ) {
+        return ResponseEntity.ok(usuarioService.findFuncionarios(name, status, role));
+    }
+
+    @PostMapping("/admin/funcionarios")
+    public ResponseEntity<Void> createFuncionario(@Valid @RequestBody FuncionarioCreateDTO dto) {
+        usuarioService.createFuncionario(dto);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/admin/{username}")

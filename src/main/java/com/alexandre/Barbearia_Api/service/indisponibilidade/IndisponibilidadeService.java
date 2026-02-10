@@ -58,7 +58,7 @@ public class IndisponibilidadeService {
             if (alvoUsername == null || alvoUsername.isBlank()) {
                 throw new UsuarioNaoBarbeiroException("Informe o barbeiro responsável.");
             }
-        } else if (UserRole.from(usuario.role()) == UserRole.BARBEIRO) {
+        } else if (UserRole.from(usuario.role()) == UserRole.FUNCIONARIO) {
             alvoUsername = usuario.username();
         } else {
             throw new UsuarioNaoBarbeiroException();
@@ -156,7 +156,7 @@ public class IndisponibilidadeService {
 
     private boolean isGestaoAgendaRole(UsuarioResponseDTO usuario) {
         UserRole role = UserRole.from(usuario != null ? usuario.role() : null);
-        return (role == UserRole.ADMIN || role == UserRole.GERENTE)
+        return (role == UserRole.ADMIN || role == UserRole.DONO)
                 && hasPermission(usuario, AcessoPermissao.INDISPONIBILIDADE_GERIR);
     }
 }
