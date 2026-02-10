@@ -60,7 +60,7 @@ public class SecurityConfigurations {
                         ).hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
                         .requestMatchers(HttpMethod.PATCH, "/usuario/admin/*/role").hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
 
-                        .requestMatchers(HttpMethod.GET, "/servico/**", "/servicos/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/servico", "/servico/**", "/servicos", "/servicos/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/servico", "/servicos").hasAnyRole("ADMIN", "DONO")
                         .requestMatchers(HttpMethod.PATCH, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "DONO")
                         .requestMatchers(HttpMethod.DELETE, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "DONO")
