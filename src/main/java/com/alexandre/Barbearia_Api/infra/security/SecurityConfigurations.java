@@ -15,6 +15,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 
+import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfigurations {
@@ -60,7 +62,12 @@ public class SecurityConfigurations {
                         ).hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
                         .requestMatchers(HttpMethod.PATCH, "/usuario/admin/*/role").hasAnyRole("ADMIN", "DONO", "FUNCIONARIO")
 
-                        .requestMatchers(HttpMethod.GET, "/servico", "/servico/**", "/servicos", "/servicos/**").permitAll()
+                        .requestMatchers(
+                                antMatcher(HttpMethod.GET, "/servico"),
+                                antMatcher(HttpMethod.GET, "/servico/**"),
+                                antMatcher(HttpMethod.GET, "/servicos"),
+                                antMatcher(HttpMethod.GET, "/servicos/**")
+                        ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/servico", "/servicos").hasAnyRole("ADMIN", "DONO")
                         .requestMatchers(HttpMethod.PATCH, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "DONO")
                         .requestMatchers(HttpMethod.DELETE, "/servico/**", "/servicos/**").hasAnyRole("ADMIN", "DONO")
