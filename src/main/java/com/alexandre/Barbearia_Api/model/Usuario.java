@@ -47,7 +47,7 @@ public class Usuario implements UserDetails {
     @Column(nullable = false)
     private UserRole role;
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String permissoes = "";
 
     @Column(nullable = false)
