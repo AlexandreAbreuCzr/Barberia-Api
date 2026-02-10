@@ -28,6 +28,9 @@ public class Servico {
     @Column(nullable = false)
     private Integer duracaoMediaEmMinutos;
 
+    @Column(name = "percentual_comissao", nullable = false, precision = 5, scale = 2)
+    private BigDecimal percentualComissao = new BigDecimal("50.00");
+
     @Column(name = "image_url")
     private String imageUrl;
 

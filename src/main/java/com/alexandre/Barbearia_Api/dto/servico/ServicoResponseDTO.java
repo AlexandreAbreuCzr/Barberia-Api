@@ -8,6 +8,7 @@ public record ServicoResponseDTO (
         String name,
         BigDecimal price,
         Integer duracaoMediaEmMinutos,
+        BigDecimal percentualComissao,
         String imageUrl,
         Boolean status,
         LocalDateTime dataDeCriacao,

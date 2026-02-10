@@ -53,11 +53,12 @@ public class ServicoController {
             @RequestParam String name,
             @RequestParam BigDecimal price,
             @RequestParam Integer duracaoEmMinutos,
+            @RequestParam(required = false, defaultValue = "50.0") BigDecimal percentualComissao,
             @RequestPart(required = false) MultipartFile image
     ) throws java.io.IOException {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(servicoService.createWithImage(name, price, duracaoEmMinutos, image));
+                .body(servicoService.createWithImage(name, price, duracaoEmMinutos, percentualComissao, image));
     }
 
     @PatchMapping("/{id}")

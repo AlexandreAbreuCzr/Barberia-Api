@@ -103,6 +103,9 @@ public class Usuario implements UserDetails {
     }
 
     public Set<AcessoPermissao> getPermissoesEfetivas() {
+        if (role == UserRole.ADMIN || role == UserRole.DONO) {
+            return AcessoPermissao.defaultsForRole(role);
+        }
         Set<AcessoPermissao> custom = AcessoPermissao.parse(permissoes);
         if (custom.isEmpty()) {
             return AcessoPermissao.defaultsForRole(role);

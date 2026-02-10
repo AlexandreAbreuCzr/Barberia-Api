@@ -104,7 +104,7 @@ public class UsuarioService {
     }
 
     public void createFuncionario(FuncionarioCreateDTO dto) {
-        requirePermission(AcessoPermissao.USUARIOS_GERIR);
+        requireEmployeeManagementAccess();
 
         Usuario autenticado = getUsuarioAutenticadoEntity();
         UserRole role = dto.role() == null ? UserRole.FUNCIONARIO : dto.role();
@@ -186,7 +186,7 @@ public class UsuarioService {
     }
 
     public List<UsuarioResponseDTO> findFuncionarios(String name, Boolean status, UserRole role) {
-        requireAnyPermission(AcessoPermissao.USUARIOS_VISUALIZAR, AcessoPermissao.USUARIOS_GERIR);
+        requireEmployeeReadAccess();
 
         UserRole roleFiltroTmp = role;
         if (roleFiltroTmp != null && roleFiltroTmp != UserRole.FUNCIONARIO && roleFiltroTmp != UserRole.DONO) {
@@ -245,6 +245,9 @@ public class UsuarioService {
 
     private void requireAnyPermission(AcessoPermissao... permissions) {
         Usuario autenticado = getUsuarioAutenticadoEntity();
+        if (autenticado.getRole() == UserRole.ADMIN || autenticado.getRole() == UserRole.DONO) {
+            return;
+        }
 
         Set<AcessoPermissao> granted = autenticado.getPermissoesEfetivas();
         for (AcessoPermissao permission : permissions) {
@@ -255,6 +258,30 @@ public class UsuarioService {
 
     private void requirePermission(AcessoPermissao permission) {
         requireAnyPermission(permission);
+    }
+
+    private void requireEmployeeManagementAccess() {
+        Usuario autenticado = getUsuarioAutenticadoEntity();
+        if (autenticado.getRole() == UserRole.ADMIN || autenticado.getRole() == UserRole.DONO) {
+            return;
+        }
+        if (autenticado.getPermissoesEfetivas().contains(AcessoPermissao.USUARIOS_GERIR)) {
+            return;
+        }
+        throw new AccessDeniedException("Voce nao possui permissao para gerenciar funcionarios.");
+    }
+
+    private void requireEmployeeReadAccess() {
+        Usuario autenticado = getUsuarioAutenticadoEntity();
+        if (autenticado.getRole() == UserRole.ADMIN || autenticado.getRole() == UserRole.DONO) {
+            return;
+        }
+        Set<AcessoPermissao> permissoes = autenticado.getPermissoesEfetivas();
+        if (permissoes.contains(AcessoPermissao.USUARIOS_GERIR)
+                || permissoes.contains(AcessoPermissao.USUARIOS_VISUALIZAR)) {
+            return;
+        }
+        throw new AccessDeniedException("Voce nao possui permissao para visualizar funcionarios.");
     }
 
     private String normalizeUsername(String username) {

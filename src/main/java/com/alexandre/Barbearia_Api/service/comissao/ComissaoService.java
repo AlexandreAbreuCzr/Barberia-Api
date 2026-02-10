@@ -43,7 +43,12 @@ public class ComissaoService {
     public Comissao createForAgendamento(Agendamento agendamento) {
         return comissaoRepository.findByAgendamento_Id(agendamento.getId())
                 .orElseGet(() -> {
-                    BigDecimal percentual = getPercentualPadrao();
+                    BigDecimal percentual = agendamento.getServico() != null
+                            ? agendamento.getServico().getPercentualComissao()
+                            : null;
+                    if (percentual == null) {
+                        percentual = getPercentualPadrao();
+                    }
                     BigDecimal valor = agendamento.getServico().getPrice()
                             .multiply(percentual)
                             .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);

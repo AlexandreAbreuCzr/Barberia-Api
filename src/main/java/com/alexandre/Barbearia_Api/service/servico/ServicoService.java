@@ -12,6 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -29,6 +30,7 @@ public class ServicoService {
         servico.setName(dto.name());
         servico.setPrice(dto.price());
         servico.setDuracaoMediaEmMinutos(dto.duracaoEmMinutos());
+        servico.setPercentualComissao(normalizePercentualComissao(dto.percentualComissao()));
         Servico salvo = servicoRepository.save(servico);
         return ServicoMapper.toResponse(salvo);
     }
@@ -37,12 +39,14 @@ public class ServicoService {
             String name,
             java.math.BigDecimal price,
             Integer duracaoEmMinutos,
+            java.math.BigDecimal percentualComissao,
             MultipartFile image
     ) throws java.io.IOException {
         Servico servico = new Servico();
         servico.setName(name);
         servico.setPrice(price);
         servico.setDuracaoMediaEmMinutos(duracaoEmMinutos);
+        servico.setPercentualComissao(normalizePercentualComissao(percentualComissao));
         String imageUrl = fileStorageService.storeServicoImage(image);
         if (imageUrl != null) {
             servico.setImageUrl(imageUrl);
@@ -84,6 +88,7 @@ public class ServicoService {
         if (dto.name() != null) servico.setName(dto.name());
         if (dto.price() != null) servico.setPrice(dto.price());
         if (dto.duracaoEmMinutos() != null) servico.setDuracaoMediaEmMinutos(dto.duracaoEmMinutos());
+        if (dto.percentualComissao() != null) servico.setPercentualComissao(normalizePercentualComissao(dto.percentualComissao()));
         if (dto.status() != null) servico.setStatus(dto.status());
         servicoRepository.save(servico);
     }
@@ -102,6 +107,16 @@ public class ServicoService {
         Servico servico = servicoRepository.findById(id)
                 .orElseThrow(ServicoNotFoundException::new);
         return servico;
+    }
+
+    private BigDecimal normalizePercentualComissao(BigDecimal percentualComissao) {
+        if (percentualComissao == null) {
+            return new BigDecimal("50.00");
+        }
+        if (percentualComissao.compareTo(BigDecimal.ZERO) < 0 || percentualComissao.compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalArgumentException("Percentual de comissao deve estar entre 0 e 100.");
+        }
+        return percentualComissao;
     }
 
 }
