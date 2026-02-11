@@ -1,25 +1,19 @@
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_name = 'servico'
-          AND column_name = 'percentual_comissao'
-    ) THEN
-        UPDATE servico
-        SET percentual_comissao = 50.00
-        WHERE percentual_comissao IS NULL;
-    END IF;
+ALTER TABLE servico
+ADD COLUMN IF NOT EXISTS percentual_comissao NUMERIC(5,2);
 
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_name = 'usuario'
-          AND column_name = 'permissoes'
-    ) THEN
-        UPDATE usuario
-        SET permissoes = ''
-        WHERE permissoes IS NULL;
-    END IF;
-END
-$$;
+UPDATE servico
+SET percentual_comissao = 50.00
+WHERE percentual_comissao IS NULL;
+
+ALTER TABLE servico
+ALTER COLUMN percentual_comissao SET DEFAULT 50.00;
+
+ALTER TABLE usuario
+ADD COLUMN IF NOT EXISTS permissoes TEXT;
+
+UPDATE usuario
+SET permissoes = ''
+WHERE permissoes IS NULL;
+
+ALTER TABLE usuario
+ALTER COLUMN permissoes SET DEFAULT '';
